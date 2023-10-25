@@ -3,12 +3,14 @@ import sys
 import time
 import threading
 
+
 class Server:
     def __init__(self, ip:str, port:int):
         self.ip = ip
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # SOCK_STREAM = TCP; SOCK_DGRAM = UDP
         self.server_socket.bind((self.ip, self.port))
+        sockets_open.append(self.server_socket)
 
     def listen(self):
         self.server_socket.listen()
@@ -36,7 +38,7 @@ class Server:
         ####Por um dicionario a ser enviado e recebido de forma serializada
         print(f"Received data from client: {data}")
         response = "Hello from the server"
-        # time.sleep(10) # Para simular processamento demorado
+        time.sleep(5) # Para simular processamento demorado
         self.send(client_socket, response)
 
         # Fecha o socket do cliente
@@ -47,21 +49,39 @@ class Server:
         self.server_socket.close()
 
 
-if __name__ == "__main__":
-    server_ip = '10.0.4.10'
-    server_port = 3000
-
-    server = Server(server_ip, server_port)
+def attend_clients(server_ip:str, server_port:int):
+    # server_ip = '10.0.4.10'
+    # server_port = 3000
     try:
-
+        server = Server(server_ip, server_port)
         server.listen()
-
         while True:
             client_socket, client_address = server.accept()
-
             #* Cria uma thread para tratar do cliente
             client_thread = threading.Thread(target=server.handle_client, args=(client_socket, client_address))
             client_thread.start()
-    
-    finally:
+    except KeyboardInterrupt:
+        print(f"exception keyboard interrupt {server_port}")
         server.close()
+    finally:
+        print(f"Finaly interrupt {server_port}")
+        server.close()
+
+if __name__ == "__main__":
+
+    # Talvez por isto como um classe até que servirá de atributo global
+    sockets_open = [] #! Não está a funcionar
+
+    t1 = threading.Thread(target=attend_clients, args=('10.0.4.10', 3000))
+    t1.start()
+    t2 = threading.Thread(target=attend_clients, args=('10.0.4.10', 3001))
+    t2.start()
+
+    try:
+        t1.join()
+        t2.join()
+    except KeyboardInterrupt:
+        print("Programa encerrado")
+        for s in sockets_open:
+            s.close() #! Não está a funcionar
+            print("Fechado socket")

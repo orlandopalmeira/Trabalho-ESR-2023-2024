@@ -1,4 +1,5 @@
 import socket
+import sys
 
 class Client:
     def __init__(self):
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     client = Client()
 
     destination_ip = '10.0.4.10'
-    destination_port = 3000
+    destination_port = int(sys.argv[1])
     client.connect(destination_ip, destination_port)
 
     client.send("Olá, servidor")
