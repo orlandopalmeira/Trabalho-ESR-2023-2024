@@ -1,8 +1,10 @@
 import socket
 import sys
 import time
-import threading
-
+# import threading
+import multiprocessing
+import signal
+import os
 
 class Server:
     def __init__(self, ip:str, port:int):
@@ -51,29 +53,45 @@ class Server:
 
 
 def attend_clients(server_ip:str, server_port:int):
+    print(f'ID process on port {server_port}: {os.getpid()}')
     # server_ip = '10.0.4.10'
     # server_port = 3000
     server = Server(server_ip, server_port)
     server.listen()
-    while True:
+    run = True
+    while run:
         try:
             client_socket, client_address = server.accept()
-            #* Cria uma thread para tratar do cliente
-            client_thread = threading.Thread(target=server.handle_client, args=(client_socket, client_address))
+            # Cria uma thread para tratar do cliente
+            client_thread = multiprocessing.Process(target=server.handle_client, args=(client_socket, client_address))
             client_thread.start()
         except Exception:
+            run = False
             print(f"{server_port} fechado")
             server.close()
 
+services = []
+
+def ctrcl_handler(sig, frame):
+    global services
+    print(f'You pressed Ctrl+C!, process id {os.getpid()}')
+    for s in services: s.terminate()
+    sys.exit(0)
 
 def main():
-
-    t1 = threading.Thread(target=attend_clients, args=('10.0.4.10', 3000))
+    print(f'ID master process: {os.getpid()}')
+    signal.signal(signal.SIGINT, ctrcl_handler)
+    t1 = multiprocessing.Process(target=attend_clients, args=('10.0.4.10', 3000))
+    services.append(t1)
     t1.start()
-    t2 = threading.Thread(target=attend_clients, args=('10.0.4.10', 3001))
+    t2 = multiprocessing.Process(target=attend_clients, args=('10.0.4.10', 3001))
+    services.append(t2)
     t2.start()
+    t3 = multiprocessing.Process(target=attend_clients, args=('10.0.4.10', 3002))
+    services.append(t3)
+    t3.start()
 
-
+    
 
 if __name__ == "__main__":
     main()
