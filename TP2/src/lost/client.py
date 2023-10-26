@@ -8,7 +8,7 @@ def main():
     porta : int
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '10.0.0.10'
+    endereco = '10.0.4.10'
 
     print(sys.argv[0])
     porta = int(sys.argv[1])
