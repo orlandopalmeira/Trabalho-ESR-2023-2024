@@ -1,70 +1,61 @@
 import socket
+import threading
+import signal
 import sys
 import time
-import multiprocessing
-import signal
-import os
 
-def ctrcl_handler(sig, frame):
-    global services
-    # print(f'You pressed Ctrl+C!, process id {os.getpid()}')
-    for s in services: 
-        s.terminate()
-    sys.exit(0)
-    
-
-# Comportamento relativo ao serviço de atendimento de clientes
-def handler_attend_clients(client_socket, client_address):
-    data = client_socket.recv(2048)
-    data = data.decode('utf-8')
-
-    #* Processamento da mensagem recebida
-    print(f"Received this data: {data}")
-    time.sleep(5) # Para simular processamento demorado
-    response = "Hello from the server"
-    response = response.encode('utf-8')
-    client_socket.send(response)
-
-    # Fecha o socket do cliente
+# Função para lidar com os clientes do serviço svc_attend_clients
+def handle_attend_clients(client_socket, address, service_name):
+    print(f"Conexão estabelecida com {address} em {service_name}")
+    while True:
+        data = client_socket.recv(1024)
+        if not data:
+            break
+        response = f"{data.upper().decode('utf-8')}"
+        time.sleep(3)
+        client_socket.send(response.encode('utf-8'))
+    print(f"Conexão encerrada com {address} em {service_name}")
     client_socket.close()
 
-
-# Serviço de atender clientes
-def svc_attend_clients(server_ip:str, server_port:int):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # SOCK_STREAM = TCP; SOCK_DGRAM = UDP
-    s.bind((server_ip, server_port))
-    s.listen()
-    print(f"Server is attending clients on {server_ip}:{server_port}")
+# Função que lida com o serviço svc_attend_clients
+def svc_attend_clients(service_name, port):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('0.0.0.0', port))
+    server_socket.listen(5)
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
 
     while True:
-        try:
-            client_socket, client_address = s.accept()
-            print(f"Connection from {client_address} has been established!")
-            # Cria uma thread para tratar do cliente
-            t = multiprocessing.Process(target=handler_attend_clients, args=(client_socket, client_address))
-            t.start()
-        except Exception:
-            print(f"Porta {server_port} fechada!")
-            s.close()
-            break
+        client_socket, addr = server_socket.accept()
+        client_handler = threading.Thread(target=handle_attend_clients, args=(client_socket, addr, service_name))
+        client_handler.start()
 
-
-services = []
+# Função para encerrar o servidor e as suas threads no momento do CTRL+C
+def ctrlc_handler(sig, frame):
+    print("A encerrar o servidor e as threads...")
+    sys.exit(0)
 
 def main():
-    adress1 = '10.0.4.10'
-    t1 = multiprocessing.Process(target=svc_attend_clients, args=(adress1, 3000))
-    t1.start()
-    t2 = multiprocessing.Process(target=svc_attend_clients, args=(adress1, 3001))
-    t2.start()
-    t3 = multiprocessing.Process(target=svc_attend_clients, args=(adress1, 3002))
-    t3.start()
+    # Regista o sinal para encerrar o servidor no momento do CTRL+C
+    signal.signal(signal.SIGINT, ctrlc_handler)
 
-    services.append(t1)
-    services.append(t2)
-    services.append(t3)
-    signal.signal(signal.SIGINT, ctrcl_handler)
-    
+    # Inicia os serviços em threads separadas
+    service1_thread = threading.Thread(target=svc_attend_clients, args=('Serviço 1', 3000))
+    service2_thread = threading.Thread(target=svc_attend_clients, args=('Serviço 2', 3001))
+    service3_thread = threading.Thread(target=svc_attend_clients, args=('Serviço 3', 3002))
 
-if __name__ == "__main__":
+    service1_thread.daemon = True
+    service2_thread.daemon = True
+    service3_thread.daemon = True
+
+    # Inicia os serviços
+    service1_thread.start()
+    service2_thread.start()
+    service3_thread.start()
+
+    # Aguarda até que todas as threads terminem
+    service1_thread.join()
+    service2_thread.join()
+    service3_thread.join()
+
+if __name__ == '__main__':
     main()
