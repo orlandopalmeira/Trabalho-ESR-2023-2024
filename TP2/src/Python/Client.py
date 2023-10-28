@@ -1,5 +1,5 @@
 from tkinter import *
-import tkinter.messagebox
+import tkinter.messagebox as tkMessageBox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
 
@@ -232,23 +232,23 @@ class Client:
 				if int(lines[0].split(' ')[1]) == 200: 
 					if self.requestSent == self.SETUP:
 						#-------------
-						# TO COMPLETE
+						# TO COMPLETE #* Completed
 						#-------------
 						# Update RTSP state.
-						# self.state = ...
+						self.state = self.READY #* Completed
 						
 						# Open RTP port.
 						self.openRtpPort() 
 					elif self.requestSent == self.PLAY:
-						# self.state = ...
+						self.state = self.PLAYING #* Completed
 						print('\nPLAY sent\n')
 					elif self.requestSent == self.PAUSE:
-						# self.state = ...
+						self.state = self.READY #* Completed
 						
 						# The play thread exits. A new thread is created on resume.
 						self.playEvent.set()
 					elif self.requestSent == self.TEARDOWN:
-						# self.state = ...
+						self.state = self.INIT #* Completed
 						
 						# Flag the teardownAcked to close the socket.
 						self.teardownAcked = 1 
@@ -256,18 +256,18 @@ class Client:
 	def openRtpPort(self):
 		"""Open RTP socket binded to a specified port."""
 		#-------------
-		# TO COMPLETE
+		# TO COMPLETE #* Completed
 		#-------------
 		# Create a new datagram socket to receive RTP packets from the server
-		# self.rtpSocket = ...
+		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #*
 		
-		# Set the timeout value of the socket to 0.5sec
-		# ...
+		# Set the timeout value of the socket to 0.5sec 
+		self.rtpSocket.setdefaulttimeout(0.5) #*
 		
 		try:
 			# Bind the socket to the address using the RTP port given by the client user
-			# ...
-			print('\nBind \n')
+			self.rtpSocket.bind(('', self.rtpPort)) #*
+			print(f'\nBinded to port {self.rtpPort}\n') #*
 		except:
 			tkMessageBox.showwarning('Unable to Bind', 'Unable to bind PORT=%d' %self.rtpPort)
 
