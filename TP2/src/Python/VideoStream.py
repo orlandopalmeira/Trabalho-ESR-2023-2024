@@ -16,7 +16,14 @@ class VideoStream:
 			# Read the current frame
 			data = self.file.read(framelength)
 			self.frameNum += 1
+		else:
+			self.restart()
+			return self.nextFrame()
 		return data
+	
+	def restart(self):
+		self.file.seek(0,0)
+		self.frameNum = 0
 		
 	def frameNbr(self):
 		"""Get frame number."""

@@ -162,7 +162,7 @@ class Client:
 		elif requestCode == self.PLAY and self.state == self.READY:
 			# Update RTSP sequence number.
 			# ...
-		    print('\nPLAY event\n')
+			print('\nPLAY event\n')
 			
 			# Write the RTSP request to be sent.
 			# request = ...
@@ -174,7 +174,7 @@ class Client:
 		elif requestCode == self.PAUSE and self.state == self.PLAYING:
 			# Update RTSP sequence number.
 			# ...
-		    print('\nPAUSE event\n')
+			print('\nPAUSE event\n')
 			
 			# Write the RTSP request to be sent.
 			# request = ...
@@ -186,7 +186,7 @@ class Client:
 		elif requestCode == self.TEARDOWN and not self.state == self.INIT:
 			# Update RTSP sequence number.
 			# ...
-		    print('\nTEARDOWN event\n')
+			print('\nTEARDOWN event\n')
 			
 			# Write the RTSP request to be sent.
 			# request = ...

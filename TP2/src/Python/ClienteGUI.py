@@ -1,5 +1,5 @@
 from tkinter import *
-import tkinter.messagebox
+import tkinter.messagebox as tkMessageBox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
 
@@ -11,7 +11,7 @@ CACHE_FILE_EXT = ".jpg"
 class ClienteGUI:
 	
 	# Initiation..
-	def __init__(self, master, addr, port):
+	def __init__(self, master: Tk, addr, port):
 		self.master = master
 		self.master.protocol("WM_DELETE_WINDOW", self.handler)
 		self.createWidgets()
@@ -66,19 +66,22 @@ class ClienteGUI:
 
 	def pauseMovie(self):
 		"""Pause button handler."""
-		print("Not implemented...")
+		print('Pause')
+		self.playEvent.set()
+		# print("Not implemented...")
 	
 	def playMovie(self):
 		"""Play button handler."""
 		# Create a new thread to listen for RTP packets
-		threading.Thread(target=self.listenRtp).start()
 		self.playEvent = threading.Event()
+		threading.Thread(target=self.listenRtp).start()
 		self.playEvent.clear()
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
 		while True:
 			try:
+				assert not self.playEvent.isSet() # vai para o except caso o user clique em pause ou teardown
 				data = self.rtpSocket.recv(20480)
 				if data:
 					rtpPacket = RtpPacket()
@@ -90,6 +93,7 @@ class ClienteGUI:
 					if currFrameNbr > self.frameNbr: # Discard the late packet
 						self.frameNbr = currFrameNbr
 						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+						if self.frameNbr == 500: self.frameNbr = 0 #! para testes apenas (permite ao vídeo ser reiniciado no cliente apenas para o vídeo movie.Mjpeg)
 			except:
 				# Stop listening upon requesting PAUSE or TEARDOWN
 				if self.playEvent.isSet(): 
