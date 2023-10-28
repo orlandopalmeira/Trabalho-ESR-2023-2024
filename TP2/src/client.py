@@ -11,12 +11,13 @@ if __name__ == "__main__":
     # client_port = 3030
     # client.bind(client_ip, client_port)
 
-    destination_ip = '10.0.4.10'
-    destination_port = int(sys.argv[1])
+    # destination_ip = '10.0.4.10'
+    destination_ip = int(sys.argv[1])
+    destination_port = int(sys.argv[2])
     addr = (destination_ip, destination_port)
     # client.connect(addr) # For TCP
 
-    my_ip = sys.argv[2]
+    my_ip = sys.argv[3]
 
     message = "Olá, servidor"
     message = Mensagem(Mensagem.video, my_ip, "video.Mpjeg").serialize()
