@@ -10,102 +10,103 @@ def ctrlc_handler(sig, frame):
     print("A encerrar o servidor e as threads...")
     sys.exit(0)
 
-##################################################################################################################
+#!#################################################################################################################
 
 # Função para lidar com os clientes do serviço svc_attend_clients
-def handle_attend_clients(client_socket, address:tuple, db: Database):
-    print(f"Conexão estabelecida com {address}")
-    while True:
-        data = client_socket.recv(1024)
-        if not data:
-            break
-        response = f"{data.upper().decode('utf-8')}"
-        time.sleep(3)
-        client_socket.send(response.encode('utf-8'))
-    print(f"Conexão encerrada com {address}")
-    client_socket.close()
+def handle_attend_clients(dados, socket, addr:tuple, db: Database):
+    print(f"Conversação estabelecida com {addr}")
+
+    # Processamento da mensagem
+    response = f"{dados.upper().decode('utf-8')}"
+    time.sleep(3)
+
+    socket.sendto(response.encode('utf-8'), addr)
+    print(f"Conversação encerrada com {addr}")
 
 # Função que lida com o serviço svc_attend_clients
 def svc_attend_clients(port:int, db: Database):
     service_name = "svc_attend_clients"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
     server_socket.bind((endereco, port))
-    server_socket.listen()
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
 
     while True:
-        client_socket, addr = server_socket.accept()
-        client_handler = threading.Thread(target=handle_attend_clients, args=(client_socket, addr, db))
-        client_handler.start()
-
-##################################################################################################################
-
-# Função para lidar com o serviço svc_add_vizinhos
-def handle_add_vizinhos(client_socket, address:tuple, db: Database):
-    print(f"Conexão estabelecida com {address}")
-    while True:
-        data = client_socket.recv(1024)
-        if not data:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_attend_clients, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_attend_clients: {e}")
             break
 
-        db.add_vizinho(address[0])
-        time.sleep(3)
+    server_socket.close()
 
-        response = f"{address} adicionado com sucesso"
-        client_socket.send(response.encode('utf-8'))
-        
-    print(f"Conexão encerrada com {address}")
-    client_socket.close()
+#!#################################################################################################################
+
+# Função para lidar com o serviço svc_add_vizinhos
+def handle_add_vizinhos(dados, socket, addr:tuple, db: Database):
+    print(f"Conversação estabelecida com {addr}")
+
+    db.add_vizinho(addr[0])
+    time.sleep(3)
+
+    response = f"{addr[0]} adicionado com sucesso"
+    socket.sendto(response.encode('utf-8'), addr)
+
+    print(f"Conversação encerrada com {addr}")
 
 # Função que lida com o serviço de adicionar vizinhos
 def svc_add_vizinhos(port:int, db: Database):
     service_name = 'svc_add_vizinhos'
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
     server_socket.bind((endereco, port))
-    server_socket.listen()
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
 
     while True:
-        client_socket, addr = server_socket.accept()
-        client_handler = threading.Thread(target=handle_add_vizinhos, args=(client_socket, addr, db))
-        client_handler.start()
-
-##################################################################################################################
-
-# Função para lidar com o serviço svc_add_vizinhos
-def handle_remove_vizinhos(client_socket, address:tuple, db: Database):
-    print(f"Conexão estabelecida com {address}")
-    while True:
-        data = client_socket.recv(1024)
-        if not data:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_add_vizinhos, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_add_vizinhos: {e}")
             break
 
-        #! Meter condição para dizer se o ip ja nao existia
-        response = db.remove_vizinho(address[0])
-        time.sleep(3)
+    server_socket.close()
 
-        client_socket.send(response.encode('utf-8'))
-        
-    print(f"Conexão encerrada com {address}")
-    client_socket.close()
+#!#################################################################################################################
+
+# Função para lidar com o serviço svc_add_vizinhos
+def handle_remove_vizinhos(dados, socket, addr:tuple, db: Database):
+    print(f"Conversação estabelecida com {addr}")
+    
+    response = db.remove_vizinho(addr[0])
+    time.sleep(3)
+    print(f"Removendo vizinho...{addr[0]}")
+
+    socket.sendto(response.encode('utf-8'), addr)
+    
+    print(f"Conversação encerrada com {addr}")
 
 # Função que lida com o serviço de adicionar vizinhos
 def svc_remove_vizinhos(port:int, db: Database):
     service_name = 'svc_remove_vizinhos'
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, port))
-    server_socket.listen()
+    addr = (endereco, port)
+    server_socket.bind(addr)
+
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
 
     while True:
-        client_socket, addr = server_socket.accept()
-        client_handler = threading.Thread(target=handle_remove_vizinhos, args=(client_socket, addr, db))
-        client_handler.start()
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_remove_vizinhos, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_remove_vizinhos: {e}")
+            break
+    server_socket.close()
 
-##################################################################################################################
+#!#################################################################################################################
 
 # Função que lida com o serviço de mostrar vizinhos de 5 em 5 segundos
 def svc_show_vizinhos(db: Database):
@@ -113,7 +114,9 @@ def svc_show_vizinhos(db: Database):
     print(f"Serviço '{service_name}' pronto para mostrar vizinhos de 5 em 5 segundos.")
     while True:
         db.show_vizinhos()
-        time.sleep(5)
+        time.sleep(10)
+
+#!#################################################################################################################
 
 def main():
 

@@ -3,7 +3,7 @@ import sys
 
 
 if __name__ == "__main__":
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # SOCK_STREAM = TCP; SOCK_DGRAM = UDP
+    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     #* Se quisermos associar uma porta especifica ao cliente
     # client_ip = "localhost"
@@ -12,14 +12,16 @@ if __name__ == "__main__":
 
     destination_ip = '10.0.4.10'
     destination_port = int(sys.argv[1])
-    client.connect((destination_ip, destination_port))
+    addr = (destination_ip, destination_port)
+    # client.connect(addr) # For TCP
 
 
     message = "Olá, servidor"
     message = message.encode('utf-8')
-    client.send(message)
+    # client.send(message) # For TCP
+    client.sendto(message, addr)
 
-    resposta = client.recv(1024)
+    resposta, add = client.recvfrom(1024)
     resposta = resposta.decode('utf-8')
     print(f"Resposta do servidor: {resposta}")
 
