@@ -4,6 +4,7 @@ import signal
 import sys
 import time
 from database import Database
+from mensagem import Mensagem
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
 def ctrlc_handler(sig, frame):
@@ -113,8 +114,54 @@ def svc_show_vizinhos(db: Database):
     service_name = 'svc_show_vizinhos'
     print(f"Serviço '{service_name}' pronto para mostrar vizinhos de 5 em 5 segundos.")
     while True:
-        db.show_vizinhos()
-        time.sleep(10)
+        # res = db.get_vizinhos()
+        res = db.get_routing_table()
+        print(f"Routing Table: {res}")
+        time.sleep(5)
+
+#!#################################################################################################################
+#! WIP
+# Verifica se tem o filme pedido e adiciona o cliente à sua routingTable
+def handle_check_video(msg, socket, addr:tuple, db: Database):
+    print(f"Conversação estabelecida com {addr}")
+    print("A verificar se tem o filme pedido...")
+
+    msg = Mensagem.deserialize(msg)
+
+    pedido_id = msg.get_id()
+    cliente_origem = msg.get_origem()
+    from_node = addr[0]
+    video = msg.get_dados()
+
+    # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
+    if not db.foi_respondido(pedido_id):
+        db.add_route(cliente_origem, from_node)
+        print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
+        db.add_pedido_respondido(pedido_id)
+    else:
+        print("Pedido já foi respondido")
+
+    response = "Sucesso!"
+    socket.sendto(response.encode('utf-8'), addr)
+    print(f"Conversação encerrada com {addr}")
+
+# Serviço relativo à verificação se tem o filme pedido e adiciona o cliente à sua routingTable
+def svc_check_video(port:int, db: Database):
+    service_name = "svc_check_video"
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    endereco = '0.0.0.0' # Listen on all interfaces
+    server_socket.bind((endereco, port))
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_check_video, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_check_video: {e}")
+            break
+
+    server_socket.close()
 
 #!#################################################################################################################
 
@@ -133,9 +180,10 @@ def main():
     svc1_thread = threading.Thread(target=svc_attend_clients, args=(3000, db))
     svc2_thread = threading.Thread(target=svc_add_vizinhos, args=(3001, db))
     svc3_thread = threading.Thread(target=svc_remove_vizinhos, args=(3002, db))
-    svc4_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
+    svc4_thread = threading.Thread(target=svc_check_video, args=(3003, db))
+    svc5_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
 
-    threads = [svc1_thread, svc2_thread, svc3_thread, svc4_thread]
+    threads = [svc1_thread, svc2_thread, svc3_thread, svc4_thread, svc5_thread]
 
     for t in threads:
         t.daemon = True

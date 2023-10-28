@@ -1,5 +1,7 @@
 import threading
 import json
+import datetime
+import copy
 
 class Database:
     # shared_variable = 0  # This is a class variable
@@ -7,8 +9,17 @@ class Database:
     def __init__(self):
         self.videos = set() # conjunto de ids de videos
         self.videoslock = threading.Lock()
+
         self.vizinhos = set()
         self.vizinhoslock = threading.Lock()
+
+        # Talvez se possa fazer um dict: ip destino -> [ip vizinho] em que a ordem é a de preferencia
+        self.routingTable = dict() # ip destino -> ip vizinho
+        self.routingTableLock = threading.Lock()
+
+        self.pedidosRespondidos = list() # lista de (id, timestamp) de pedidos respondidos. A timestamp existe para que se possa remover da lista passado um certo tempo
+        self.pedidosRespondidosLock = threading.Lock()
+
 
     # L~e o ficheiro de configuração JSON e guarda o necessário na base de dados
     def read_config_file(self, filepath):
@@ -31,14 +42,10 @@ class Database:
             except KeyError:
                 return "Vizinho não existia"
 
-    # Printa os vizinhos
-    def show_vizinhos(self):
-        self.vizinhoslock.acquire()
-        print()
-        print(f"Vizinhos: {self.vizinhos}")
-        print(f"Quantidade: {len(self.vizinhos)}")
-        print()
-        self.vizinhoslock.release()
+    # Retorna uma copia dos vizinhos
+    def get_vizinhos(self):
+        with self.vizinhoslock:
+            return self.vizinhos.copy()
     
     def quantos_vizinhos(self):
         self.vizinhoslock.acquire()
@@ -58,4 +65,39 @@ class Database:
                 return "Vídeo removido com sucesso"
             except KeyError:
                 return "Video não existia"
+            
+    def add_route(self, ip_destino:str, ip_vizinho:str):
+        with self.routingTableLock:
+            self.routingTable[ip_destino] = ip_vizinho
+
+    def remove_route(self, ip_destino:str):
+        with self.routingTableLock:
+            try:
+                del self.routingTable[ip_destino]
+                return "Rota removida com sucesso"
+            except KeyError:
+                return "Rota não existia"
+            
+    def get_routing_table(self):
+        with self.routingTableLock:
+            return self.routingTable.copy()
+            
+    def add_pedido_respondido(self, id: int):
+        with self.pedidosRespondidosLock:
+            self.pedidosRespondidos.append((id, datetime.datetime.now()))
+
+    def remove_pedido_respondido(self):
+        """Elimina pedido respondido há mais de 10 segundos"""
+        now = datetime.datetime.now()
+        with self.pedidosRespondidosLock:
+            for i in range(len(self.pedidosRespondidos)):
+                if self.pedidosRespondidos[i][1] < now - datetime.timedelta(seconds=10):
+                    del self.pedidosRespondidos[i]
+
+    def foi_respondido(self, id:int):
+        with self.pedidosRespondidosLock:
+            for i in range(len(self.pedidosRespondidos)):
+                if self.pedidosRespondidos[i][0] == id:
+                    return True
+            return False
 

@@ -1,5 +1,6 @@
 import socket
 import sys
+from mensagem import Mensagem
 
 
 if __name__ == "__main__":
@@ -15,9 +16,10 @@ if __name__ == "__main__":
     addr = (destination_ip, destination_port)
     # client.connect(addr) # For TCP
 
+    my_ip = sys.argv[2]
 
     message = "Olá, servidor"
-    message = message.encode('utf-8')
+    message = Mensagem(Mensagem.video, my_ip, "video.Mpjeg").serialize()
     # client.send(message) # For TCP
     client.sendto(message, addr)
 
