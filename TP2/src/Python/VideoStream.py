@@ -23,7 +23,7 @@ class VideoStream:
 	
 	def restart(self):
 		self.file.seek(0,0)
-		self.frameNum = 0
+		# self.frameNum = 0
 		
 	def frameNbr(self):
 		"""Get frame number."""

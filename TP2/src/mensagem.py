@@ -5,12 +5,12 @@ import pickle
 
 class Mensagem:
     #! WIP
-    video=1
-    control=2
-    vizinho=3
-    rota=4
-    pedido=5
-    resposta=6
+    start_video = 1 # Pede o vídeo e nos dados, vem o nome do vídeo
+    metrica     = 2 # Pede a métrica
+    stop_video  = 3 # Pede para parar o vídeo
+    check_video = 4 # Pede para verificar se tem um vídeo, e nome do nome vem no vídeo
+    resp_check_video = 5 # Resposta ao pedido de check_video
+
 
     def __init__(self, tipo:int, origem:str, dados):
         self.tipo = tipo
@@ -21,6 +21,9 @@ class Mensagem:
 
     def get_id(self):
         return self.id
+    
+    def get_tipo(self):
+        return self.tipo
     
     def get_origem(self):
         return self.origem
@@ -37,7 +40,8 @@ class Mensagem:
 
     
     def __str__(self):
-        return f"Message: {self.tipo}\nId: {self.id}\nOrigem: {self.origem}\nDados: {self.dados}"
+        tipo_name = [k for k, v in vars(self.__class__).items() if v == self.tipo][0]
+        return f"Message: {tipo_name}\nId: {self.id}\nOrigem: {self.origem}\nDados: {self.dados}"
     
     def __repr__(self):
         return self.__str__()

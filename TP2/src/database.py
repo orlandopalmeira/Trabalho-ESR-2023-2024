@@ -10,6 +10,9 @@ class Database:
         self.videos = set() # conjunto de ids de videos
         self.videoslock = threading.Lock()
 
+        self.streamingLock = threading.Lock()
+        self.streaming = dict() # {nome_video: [(thread.event, addr)]}
+
         self.vizinhos = set()
         self.vizinhoslock = threading.Lock()
 
@@ -21,13 +24,14 @@ class Database:
         self.pedidosRespondidosLock = threading.Lock()
 
 
-    # L~e o ficheiro de configuração JSON e guarda o necessário na base de dados
+    # Lê o ficheiro de configuração JSON e guarda o necessário na base de dados
     def read_config_file(self, filepath):
         with open(filepath) as f:
             data = json.load(f)
-            self.vizinhoslock.acquire()
+        with self.vizinhoslock:
             self.vizinhos = set(data["vizinhos"])
-            self.vizinhoslock.release()
+        with self.videoslock:
+            self.videos = set(data["videos"])
 
     def add_vizinho(self, ip):
         self.vizinhoslock.acquire()
@@ -53,18 +57,34 @@ class Database:
         self.vizinhoslock.release()
         return quantos
 
-    def add_video(self, video_id):
+    def add_video(self, video):
         self.videoslock.acquire()
-        self.videos.add(video_id)
+        self.videos.add(video)
         self.videoslock.release()
 
-    def remove_video(self, video_id):
+    def remove_video(self, video):
         with self.videoslock:
             try:
-                self.videos.remove(video_id)
+                self.videos.remove(video)
                 return "Vídeo removido com sucesso"
             except KeyError:
                 return "Video não existia"
+            
+    def has_video(self, video):
+        with self.videoslock:
+            return video in self.videos
+            
+    def add_streaming(self, video, event, addr):
+        with self.streamingLock:
+            self.streaming[video].append((event, addr))
+
+    def remove_streaming(self, video):
+        with self.streamingLock:
+            try:
+                del self.streaming[video]
+                return "Streaming removido com sucesso"
+            except KeyError:
+                return "Streaming não existia"
             
     def add_route(self, ip_destino:str, ip_vizinho:str):
         with self.routingTableLock:
