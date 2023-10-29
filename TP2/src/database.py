@@ -1,7 +1,6 @@
 import threading
 import json
 import datetime
-import copy
 
 class Database:
     # shared_variable = 0  # This is a class variable
