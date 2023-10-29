@@ -1,10 +1,10 @@
 from random import randint
 import sys, traceback, threading, socket
 
+sys.path.append("./Python")
 from VideoStream import VideoStream
 from RtpPacket import RtpPacket
 
-sys.path.append("../")
 
 from database import Database
 from mensagem import Mensagem
@@ -151,7 +151,7 @@ def main():
 	# db.read_config_file(sys.argv[1])
 
 	#! Introdução hardocded do video que tem
-	db.add_video("movie.Mjpeg")
+	db.add_video("./Python/movie.Mjpeg")
 
 
 

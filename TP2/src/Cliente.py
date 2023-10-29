@@ -1,8 +1,7 @@
 import sys, socket
 from tkinter import Tk
+sys.path.append("./Python")
 from ClienteGUI import ClienteGUI
-
-sys.path.append("../")
 
 from database import Database
 from mensagem import Mensagem
@@ -18,7 +17,7 @@ if __name__ == "__main__":
 	dest = (dest_addr, dest_port)
 
 	socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	msg = Mensagem(Mensagem.check_video, "dummy_ip", "movie.Mjpeg")
+	msg = Mensagem(Mensagem.check_video, "dummy_ip", "./Python/movie.Mjpeg")
 
 	msg = msg.serialize()
 	socket.sendto(msg, dest)
@@ -27,11 +26,11 @@ if __name__ == "__main__":
 	msg = Mensagem.deserialize(msg)
 	print(msg)
 	##ifs
-	msg = Mensagem(Mensagem.start_video, "dummy_ip", "movie.Mjpeg")
+	msg = Mensagem(Mensagem.start_video, "dummy_ip", "./Python/movie.Mjpeg")
 	socket.sendto(msg.serialize(), dest)
 
 
-	
+	print("aqui")
 	# Create a new client
 	# app = ClienteGUI(root, addr, port)
 	app = ClienteGUI(root, socket)

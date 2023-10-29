@@ -12,7 +12,7 @@ if __name__ == "__main__":
     # client.bind(client_ip, client_port)
 
     # destination_ip = '10.0.4.10'
-    destination_ip = int(sys.argv[1])
+    destination_ip = sys.argv[1]
     destination_port = int(sys.argv[2])
     addr = (destination_ip, destination_port)
     # client.connect(addr) # For TCP
