@@ -55,21 +55,16 @@ class Servidor:
 		return rtpPacket.getPacket()
 
 	
-	def main(self):
-		try:
-			# Get the media file name
-			filename = sys.argv[1]
-			print("Using provided video file ->  " + filename)
-		except:
-			print("[Usage: Servidor.py <videofile>]\n")
-			filename = "movie.Mjpeg"
-			print("Using default video file ->  " + filename)
+	def main(self, dest_addr:str, dest_port:int, movie_name:str):
+
+		# Para o indicar onde os filmes estão guardados
+		filename = f"{movie_name}"
 
 		# videoStram
 		self.clientInfo['videoStream'] = VideoStream(filename)
 		# socket
-		self.clientInfo['rtpPort'] = 25000
-		self.clientInfo['rtpAddr'] = socket.gethostbyname('127.0.0.1')
+		self.clientInfo['rtpPort'] = dest_port
+		self.clientInfo['rtpAddr'] = dest_addr
 		print("Sending to Addr:" + self.clientInfo['rtpAddr'] + ":" + str(self.clientInfo['rtpPort']))
 		# Create a new socket for RTP/UDP
 		self.clientInfo["rtpSocket"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -78,7 +73,10 @@ class Servidor:
 		self.clientInfo['worker'].start()
 
 if __name__ == "__main__":
-	(Servidor()).main()
+	dest_addr = "10.0.0.20"
+	dest_port = 25000
+	movie = "movie.Mjpeg"
+	(Servidor()).main(dest_addr, dest_port, movie)
 
 
 

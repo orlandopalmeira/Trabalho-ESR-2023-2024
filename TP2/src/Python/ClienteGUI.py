@@ -126,12 +126,13 @@ class ClienteGUI:
 		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		
 		# Set the timeout value of the socket to 0.5sec
-		self.rtpSocket.settimeout(0.5)
+		# self.rtpSocket.settimeout(0.5) #! Comentei este timeout
 		
 		try:
 			# Bind the socket to the address using the RTP port
-			self.rtpSocket.bind((self.addr, self.port))
-			print('\nBind \n')
+			addr = (self.addr, self.port)
+			self.rtpSocket.bind(addr)
+			print(f'\nBinded to {addr} \n')
 		except:
 			tkMessageBox.showwarning('Unable to Bind', 'Unable to bind PORT=%d' %self.rtpPort)
 
