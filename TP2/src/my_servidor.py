@@ -60,7 +60,7 @@ class Servidor:
 	def serve_movie(self, dest_addr:str, dest_port:int, movie_name:str):
 
 		# Para o indicar onde os filmes estão guardados
-		filename = f"{movie_name}"
+		filename = f"./videos/{movie_name}" # talvez acrescentar no formated string "{movie_name}.Mjpeg"
 
 		self.clientInfo = dict()
 
@@ -144,15 +144,9 @@ def main():
 
 	db = Database()
 
-	#! Talvez receba um ficheiro com a informação de configuração a dizer os movies que pode disponibilizar
-	# if len(sys.argv) < 2:
-	#     print(f"Uso: python3 {sys.argv[0]} <config_file.json>")
-	#     sys.exit(1)
-	# db.read_config_file(sys.argv[1])
-
-	#! Introdução hardocded do video que tem
-	db.add_video("./Python/movie.Mjpeg")
-
+	#! Introdução hardcoded do video que tem
+	db.add_video("movie.Mjpeg")
+	db.add_video("movie_2.Mjpeg")
 
 
 	# Regista o sinal para encerrar o servidor no momento do CTRL+C
@@ -174,14 +168,9 @@ def main():
 
 
 if __name__ == '__main__':
-	
 	# dest_addr = "10.0.0.20"
 	# dest_port = 25000
 	# video = "movie.Mjpeg"
 	# (Servidor()).main(dest_addr, dest_port, video)
 	
-	#####################
-
 	main()
-
-
