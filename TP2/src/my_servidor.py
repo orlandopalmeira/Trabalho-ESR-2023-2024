@@ -149,9 +149,7 @@ def main():
 
 	db = Database_Server()
 
-	#! Introdução hardcoded do video que tem
-	db.add_video("movie.Mjpeg")
-	db.add_video("movie_2.Mjpeg")
+	db.read_config_file(sys.argv[1])
 
 
 	# Regista o sinal para encerrar o servidor no momento do CTRL+C
