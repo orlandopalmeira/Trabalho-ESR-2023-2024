@@ -1,7 +1,9 @@
 from tkinter import *
 import tkinter.messagebox as tkMessageBox
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageFile
 import socket, threading, sys, traceback, os
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 from RtpPacket import RtpPacket
 
