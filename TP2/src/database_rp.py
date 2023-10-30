@@ -20,8 +20,20 @@ class Database_RP(Database):
                 self.metricTable[s] = dict()
 
     def get_servidores(self):
+        """Retorna os ips dos servidores"""
         with self.metricTableLock:
             return self.metricTable.keys().copy()
+        
+    def remove_servidor(self, serv):
+        with self.metricTableLock:
+            try:
+                del self.metricTable[serv]
+                print( f"Servidor {serv} removido com sucesso")
+                return f"Servidor {serv} removido com sucesso"
+            except KeyError:
+                print( f"Servidor {serv} não existia")
+                return f"Servidor {serv} não existia"
+
 
     def adiciona_fonte(self, fonte, metric, contents):
         with self.metricTableLock:
