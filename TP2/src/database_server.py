@@ -55,3 +55,7 @@ class Database_Server:
                 return "Streaming removido com sucesso"
             except KeyError:
                 return "Streaming não existia"
+            
+    def is_rp_addr(self, addr):
+        with self.rp_addr_Lock:
+            return addr == self.rp_addr
