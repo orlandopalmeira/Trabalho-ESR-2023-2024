@@ -6,7 +6,8 @@ from VideoStream import VideoStream
 from RtpPacket import RtpPacket
 
 
-from database import Database
+#from database import Database
+from database_server import Database_Server
 from mensagem import Mensagem
 import signal
 
@@ -83,7 +84,7 @@ def ctrlc_handler(sig, frame):
     sys.exit(0)
 
 
-def svc_answer_requests(port:int, db: Database):
+def svc_answer_requests(port:int, db: Database_Server):
 	service_name = "svc_answer_requests"
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	endereco = "" # Listen on all interfaces
@@ -98,7 +99,7 @@ def svc_answer_requests(port:int, db: Database):
 			print(f"Erro svc_answer_requests: {e}")
 			break
 
-def handle_answer_requests(dados, socket, addr:tuple, db: Database):
+def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
 	print(f"Conversação estabelecida com {addr}")
 	print(msg)
@@ -121,15 +122,19 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database):
 		pass
 
 	elif msg.get_tipo() == Mensagem.check_video:
-		video = msg.get_dados()
-		if db.has_video(video):
-			print(f"Response check video: Tenho o video {video}")
-			msg = Mensagem(Mensagem.resp_check_video, "my_ip", "1")
-		else:
-			print(f"Response check video: Não tenho o video {video}")
-			msg = Mensagem(Mensagem.resp_check_video, "my_ip", "0")
-		msg = msg.serialize()
-		socket.sendto(msg, addr)
+		videos = db.get_videos()
+		msg = Mensagem(Mensagem.resp_check_video, "dummy_ip", videos).serialize()
+		socket.sendto(msg,addr)
+		# Versão antiga
+		# video = msg.get_dados()
+		# if db.has_video(video):
+		# 	print(f"Response check video: Tenho o video {video}")
+		# 	msg = Mensagem(Mensagem.resp_check_video, "my_ip", "1")
+		# else:
+		# 	print(f"Response check video: Não tenho o video {video}")
+		# 	msg = Mensagem(Mensagem.resp_check_video, "my_ip", "0")
+		# msg = msg.serialize()
+		# socket.sendto(msg, addr)
 
 	elif msg.get_tipo() == Mensagem.metrica:
 		###! UNFINISHED
@@ -142,7 +147,7 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database):
 
 def main():
 
-	db = Database()
+	db = Database_Server()
 
 	#! Introdução hardcoded do video que tem
 	db.add_video("movie.Mjpeg")
