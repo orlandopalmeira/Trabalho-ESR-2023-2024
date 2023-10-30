@@ -6,25 +6,30 @@ class Database_Server:
 
     def __init__(self):
         self.videos = set() # conjunto de ids de videos
-        self.videoslock = threading.Lock()
+        self.videosLock = threading.Lock()
 
         self.streamsLock = threading.Lock()
         self.streams = dict() # {nome_video: [(thread.event, addr)]}
+
+        self.rp_addr_Lock = threading.Lock()
+        self.rp_addr = None # string
 
     # Lê o ficheiro de configuração JSON e guarda o necessário na base de dados
     def read_config_file(self, filepath):
         with open(filepath) as f:
             data = json.load(f)
-        with self.videoslock:
+        with self.videosLock:
             self.videos = set(data["videos"])
+        with self.rp_addr_Lock:
+            self.rp_addr = data["rp_addr"]
+
 
     def add_video(self, video):
-        self.videoslock.acquire()
-        self.videos.add(video)
-        self.videoslock.release()
+        with self.videosLock:
+            self.videos.add(video)
 
     def remove_video(self, video):
-        with self.videoslock:
+        with self.videosLock:
             try:
                 self.videos.remove(video)
                 return "Vídeo removido com sucesso"
@@ -32,11 +37,11 @@ class Database_Server:
                 return "Video não existia"
             
     def has_video(self, video):
-        with self.videoslock:
+        with self.videosLock:
             return video in self.videos
         
     def get_videos(self):
-        with self.videoslock:
+        with self.videosLock:
             return self.videos.copy()
             
     def add_stream(self, video, event, addr):

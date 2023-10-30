@@ -1,0 +1,7 @@
+{
+    "videos": [
+        "movie.Mjpeg",
+        "movie_2.Mjpeg"
+    ],
+    "servidor_rp": "10.0.4.1"
+}
