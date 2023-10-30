@@ -94,7 +94,6 @@ class ClienteGUI:
 					if currFrameNbr > self.frameNbr: # Discard the late packet
 						self.frameNbr = currFrameNbr
 						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
-						if self.frameNbr == 500: self.frameNbr = 0 #! para testes apenas (permite ao vídeo ser reiniciado no cliente apenas para o vídeo movie.Mjpeg)
 			except:
 				# Stop listening upon requesting PAUSE or TEARDOWN
 				if self.playEvent.isSet(): 
