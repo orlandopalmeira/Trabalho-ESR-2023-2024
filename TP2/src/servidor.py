@@ -123,18 +123,8 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 
 	elif msg.get_tipo() == Mensagem.check_video:
 		videos = db.get_videos()
-		msg = Mensagem(Mensagem.resp_check_video, "dummy_ip", videos).serialize()
+		msg = Mensagem(Mensagem.resp_check_video, dados=videos).serialize()
 		socket.sendto(msg,addr)
-		# Versão antiga
-		# video = msg.get_dados()
-		# if db.has_video(video):
-		# 	print(f"Response check video: Tenho o video {video}")
-		# 	msg = Mensagem(Mensagem.resp_check_video, "my_ip", "1")
-		# else:
-		# 	print(f"Response check video: Não tenho o video {video}")
-		# 	msg = Mensagem(Mensagem.resp_check_video, "my_ip", "0")
-		# msg = msg.serialize()
-		# socket.sendto(msg, addr)
 
 	elif msg.get_tipo() == Mensagem.metrica:
 		###! UNFINISHED

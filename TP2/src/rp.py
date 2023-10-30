@@ -62,7 +62,7 @@ def svc_check_video(port:int, db: Database_RP):
 def get_videos_from_server(server_ip, sckt, db: Database_RP):
     """Pede a um servidor todos os seus vídeos"""
     server = (server_ip,3000)
-    msg = Mensagem(Mensagem.check_video, "dummy_ip", None).serialize()
+    msg = Mensagem(Mensagem.check_video).serialize()
     sckt.sendto(msg, server)
     data = sckt.recvfrom(1024) # aguarda a resposta do servidor
     if data:

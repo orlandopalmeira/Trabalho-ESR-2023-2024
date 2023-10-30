@@ -12,12 +12,13 @@ class Mensagem:
     resp_check_video = 5 # Resposta ao pedido de check_video
 
 
-    def __init__(self, tipo:int, origem:str, dados):
+    # def __init__(self, tipo:int, origem:str, dados):
+    def __init__(self, tipo:int, dados="", origem:str = "dummy_ip"):
         self.tipo = tipo
         self.id = random.randint(0, 1000)
-        self.origem = origem # IP da origem do pedido
         self.dados = dados
-        self.datetime = datetime.datetime.now()
+        self.origem = origem # IP da origem do pedido
+        self.timestamp = datetime.datetime.now() #! Talvez meter um método que atualize isto e talvez ate por esse metodo a ser chamado no Serialize() que é o ultimo sitio que ocorre possiveis alterações ao objeto
 
     def get_id(self):
         return self.id
@@ -30,6 +31,9 @@ class Mensagem:
     
     def get_dados(self):
         return self.dados
+    
+    def update_timestamp(self):
+        self.timestamp = datetime.datetime.now()
 
     def serialize(self):
         return pickle.dumps(self)

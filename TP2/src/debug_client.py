@@ -20,7 +20,7 @@ if __name__ == "__main__":
     my_ip = sys.argv[3]
 
     message = "Olá, servidor"
-    message = Mensagem(Mensagem.video, my_ip, "video.Mpjeg").serialize()
+    message = Mensagem(Mensagem.video, dados="video.Mpjeg", origem=my_ip).serialize()
     # client.send(message) # For TCP
     client.sendto(message, addr)
 
