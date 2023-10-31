@@ -3,6 +3,7 @@ import threading
 import signal
 import sys
 import time
+import datetime
 from database_rp import Database_RP
 from mensagem import Mensagem
 
@@ -75,7 +76,7 @@ def handler_get_videos_from_server(server_ip: str, db: Database_RP):
             return
         if data:
             videos = Mensagem.deserialize(data).get_dados()
-            db.atualiza_servidor(server_ip, 0.0, videos)
+            db.atualiza_contents(server_ip, videos)
         else:
             print(f"Resposta vazia do servidor {server_ip}")
     finally:
@@ -112,29 +113,29 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
     try:
         sckt.settimeout(6)
         server = (server_ip, 3010)
-        msgs = []
         for i in range(num_of_requests):
             msg = Mensagem(Mensagem.metrica).serialize()
-            msgs.append(msg)
             sckt.sendto(msg, server)
             print(f"Enviada mensagem de teste {i} para o servidor {server}")
 
         successes = 0
-        avg_delivery_time = 0
-        for i, msg in enumerate(msgs):
+        sum_delivery_time = 0
+        for i in range(num_of_requests):
             try:
-                data, _ = sckt.recvfrom(1024) # aguarda a resposta do servidor
-                res = Mensagem.deserialize(data)
-                #! Verificar timestamp criada no servidor e medir o tempo
-                if res in msgs:
+                data, _ = sckt.recvfrom(1024) # aguarda a resposta do 
+                now = datetime.datetime.now()
+                try:
+                    res = Mensagem.deserialize(data)
                     successes += 1
-                else:
-                    print(f"Resposta {i} do servidor {server} não está no conjunto de mensagens enviadas")
+                    sum_delivery_time += (now - res.get_timestamp).total_seconds()
+                except:
+                    print(f"Erro ao deserializar resposta {i} do servidor {server}")
+                    
             except socket.timeout:
                 print(f"Timeout ao receber resposta {i} do servidor {server}")
                 break
         if successes > 0:
-            avg_delivery_time = avg_delivery_time / successes
+            avg_delivery_time = sum_delivery_time / successes
             final_metric = 0.5 * (1 / avg_delivery_time) + 0.5 * (successes/num_of_requests) # Quanto maior a métrica, melhor
             db.atualiza_metrica(server_ip, final_metric)
         else:

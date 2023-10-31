@@ -83,7 +83,7 @@ def ctrlc_handler(sig, frame):
     print("A encerrar o servidor e as threads...")
     sys.exit(0)
 
-
+#################################################################################################################
 def svc_answer_requests(port:int, db: Database_Server):
 	service_name = "svc_answer_requests"
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -125,16 +125,44 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 		videos = db.get_videos()
 		msg = Mensagem(Mensagem.resp_check_video, dados=videos).serialize()
 		socket.sendto(msg, addr)
-		print(f"Enviados os videos {videos} para {addr}")
-
-	elif msg.get_tipo() == Mensagem.metrica:
-		###! UNFINISHED
-		print("METRICA-WIP")
-		pass
+		print(f"Check_video respondido com os videos {videos} para {addr}")
 
 	else:
 		print("Foi recebido uma mensagem desconhecida!!")
 		
+#################################################################################################################
+#! WIP - CHECKING
+
+def svc_answer_metrics(port:int, db: Database_Server):
+	service_name = "svc_answer_metrics"
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	endereco = "" # Listen on all interfaces
+	server_socket.bind((endereco, port))
+	print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+	while True:
+		try:
+			dados, addr = server_socket.recvfrom(1024)
+			threading.Thread(target=handle_answer_metrics, args=(dados, server_socket, addr, db)).start()
+		except Exception as e:
+			print(f"Erro svc_answer_metrics: {e}")
+			break
+
+def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
+	msg = Mensagem.deserialize(dados)
+	print(f"Conversação estabelecida com {addr}")
+
+	if msg.get_tipo() == Mensagem.metrica:
+		msg.update_timestamp()
+		#! Talvez atualizar aqui o campo origem da mensagem para efeitos de routing futuros
+		socket.sendto(msg, addr)
+		print(f"Métrica de {addr}, respondida.")
+	else:
+		print("Foi recebido uma mensagem desconhecida!!")
+
+
+
+#################################################################################################################
 
 def main():
 
@@ -148,8 +176,9 @@ def main():
 
 	# Inicia os serviços em threads separadas
 	svc1_thread = threading.Thread(target=svc_answer_requests, args=(3000, db))
+	svc2_thread = threading.Thread(target=svc_answer_metrics, args=(3010, db))
 
-	threads = [svc1_thread]
+	threads = [svc1_thread, svc2_thread]
 
 	for t in threads:
 		t.daemon = True

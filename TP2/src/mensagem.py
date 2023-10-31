@@ -18,7 +18,7 @@ class Mensagem:
         self.id = random.randint(0, 1000)
         self.dados = dados
         self.origem = origem # IP da origem do pedido
-        self.timestamp = datetime.datetime.now() #! Talvez meter um método que atualize isto e talvez ate por esse metodo a ser chamado no Serialize() que é o ultimo sitio que ocorre possiveis alterações ao objeto
+        self.timestamp = None # datetime.datetime.now() #! Talvez meter um método que atualize isto e talvez ate por esse metodo a ser chamado no Serialize() que é o ultimo sitio que ocorre possiveis alterações ao objeto
 
     def get_id(self):
         return self.id
@@ -31,6 +31,9 @@ class Mensagem:
     
     def get_dados(self):
         return self.dados
+    
+    def get_timestamp(self):
+        return self.timestamp
     
     def update_timestamp(self):
         self.timestamp = datetime.datetime.now()
