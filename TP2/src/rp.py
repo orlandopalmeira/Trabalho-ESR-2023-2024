@@ -108,6 +108,7 @@ def svc_get_videos_from_servers_continuous(db: Database_RP):
 # Pede a um servidor os seus videos
 def handler_measure_metrics(server_ip: str, db: Database_RP):
     """Pede a um servidor todos os seus vídeos"""
+    print(f"A medir métrica do servidor {server_ip}")
     num_of_requests = 10
     sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -139,9 +140,9 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
             final_metric = 0.5 * (1 / avg_delivery_time) + 0.5 * (successes/num_of_requests) # Quanto maior a métrica, melhor
             db.atualiza_metrica(server_ip, final_metric)
         else:
-            db.atualiza_metrica(server_ip, 0) # 0 significa de métrica, significa que está offline
+            db.atualiza_metrica(server_ip, 0) # 0 significa que está praticamente offline
 
-
+        print(f"Medição de {server}: avg_del_time->{avg_delivery_time} | %success->{(successes/num_of_requests)*100}% | final_metric->{final_metric}")
     finally:
         sckt.close()
 
