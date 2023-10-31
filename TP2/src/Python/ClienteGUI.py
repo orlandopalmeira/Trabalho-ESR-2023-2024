@@ -2,14 +2,15 @@ from tkinter import *
 import tkinter.messagebox as tkMessageBox
 from PIL import Image, ImageTk, ImageFile
 import socket, threading, sys, traceback, os
+import random
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 from RtpPacket import RtpPacket
 
-CACHE_FILE_NAME = "cache-"
+CACHE_FILE_NAME = f"cache-{random.randint(0,10000)}-"
 CACHE_FILE_EXT = ".jpg"
-
+from mensagem import Mensagem
 class ClienteGUI:
 	
 	# Initiation..
