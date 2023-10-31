@@ -153,9 +153,9 @@ def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
 	print(f"Conversação estabelecida com {addr}")
 
 	if msg.get_tipo() == Mensagem.metrica:
-		msg.update_timestamp()
 		#! Talvez atualizar aqui o campo origem da mensagem para efeitos de routing futuros
-		socket.sendto(msg, addr)
+		msg.update_timestamp()
+		socket.sendto(msg.serialize(), addr)
 		print(f"Métrica de {addr}, respondida.")
 	else:
 		print("Foi recebido uma mensagem desconhecida!!")

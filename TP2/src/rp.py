@@ -127,7 +127,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
                 try:
                     res = Mensagem.deserialize(data)
                     successes += 1
-                    sum_delivery_time += (now - res.get_timestamp).total_seconds()
+                    sum_delivery_time += (now - res.get_timestamp()).total_seconds()
                 except:
                     print(f"Erro ao deserializar resposta {i} do servidor {server}")
                     
@@ -159,7 +159,7 @@ def svc_measure_metrics(db: Database_RP):
 def svc_measure_metrics_continuous(db: Database_RP):
     while True:
         svc_measure_metrics(db)
-        time.sleep(60)
+        time.sleep(20) # talvez meter isto a 1 minuto
 
 #!#################################################################################################################
 
@@ -190,10 +190,10 @@ def main():
 
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_check_video, args=(3000, db))
-    # svc2_thread = threading.Thread(target=svc_update_metrics, args=(3001, db))
+    svc2_thread = threading.Thread(target=svc_measure_metrics_continuous, args=(db,))
     show_thread = threading.Thread(target=svc_show_db, args=(db,))
 
-    threads = [svc1_thread, show_thread]
+    threads = [svc1_thread, svc2_thread, show_thread]
 
     for t in threads:
         t.daemon = True

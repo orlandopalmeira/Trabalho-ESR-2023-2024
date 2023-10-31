@@ -48,7 +48,8 @@ class Mensagem:
     
     def __str__(self):
         tipo_name = [k for k, v in vars(self.__class__).items() if v == self.tipo][0]
-        return f"Message: {tipo_name}\nId: {self.id}\nOrigem: {self.origem}\nDados: {self.dados}"
+        # Retorna em formato de dicionário
+        return f"{{\n\tTipo: {tipo_name},\n\tId: {self.id},\n\tOrigem: {self.origem},\n\tDados: {self.dados}\n}}"
     
     def __repr__(self):
         return self.__str__()
