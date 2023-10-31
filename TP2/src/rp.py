@@ -139,6 +139,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
         if successes > 0:
             avg_delivery_time = sum_delivery_time / successes
             final_metric = 0.5 * (1 / avg_delivery_time) + 0.5 * (successes/num_of_requests) # Quanto maior a métrica, melhor
+            # final_metric = (1 - (avg_delivery_time / "Max Tolerable Delay Time")) * ((successes/num_of_requests) * 100)
             db.atualiza_metrica(server_ip, final_metric)
         else:
             final_metric = 0
