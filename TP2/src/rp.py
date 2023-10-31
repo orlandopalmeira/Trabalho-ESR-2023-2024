@@ -112,7 +112,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
     num_of_requests = 10
     sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        sckt.settimeout(6)
+        sckt.settimeout(5)
         server = (server_ip, 3010)
         for i in range(num_of_requests):
             msg = Mensagem(Mensagem.metrica).serialize()
@@ -121,6 +121,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
 
         successes = 0
         sum_delivery_time = 0
+        avg_delivery_time = None
         for i in range(num_of_requests):
             try:
                 data, _ = sckt.recvfrom(1024) # aguarda a resposta do 
@@ -140,7 +141,8 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
             final_metric = 0.5 * (1 / avg_delivery_time) + 0.5 * (successes/num_of_requests) # Quanto maior a métrica, melhor
             db.atualiza_metrica(server_ip, final_metric)
         else:
-            db.atualiza_metrica(server_ip, 0) # 0 significa que está praticamente offline
+            final_metric = 0
+            db.atualiza_metrica(server_ip, final_metric) # 0 significa que está praticamente offline
 
         print(f"Medição de {server}: avg_del_time->{avg_delivery_time} | %success->{(successes/num_of_requests)*100}% | final_metric->{final_metric}")
     finally:
