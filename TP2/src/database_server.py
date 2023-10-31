@@ -18,8 +18,11 @@ class Database_Server:
     def read_config_file(self, filepath):
         with open(filepath) as f:
             data = json.load(f)
-        with self.videosLock:
-            self.videos = set(data["videos"])
+        if "videos" in data:
+            with self.videosLock:
+                self.videos = set(data["videos"])
+        else:
+            print("AVISO: Não existem videos no ficheiro de configuração!!!")
         with self.rp_addr_Lock:
             self.rp_addr = data["rp_addr"]
 

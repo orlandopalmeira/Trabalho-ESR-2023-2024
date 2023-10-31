@@ -29,8 +29,10 @@ class Database:
             data = json.load(f)
         with self.vizinhoslock:
             self.vizinhos = set(data["vizinhos"])
-        with self.videoslock:
-            self.videos = set(data["videos"])
+        if "videos" in data:
+            print("\n\nPASSEI AQUI\n\n\n\n\n")
+            with self.videoslock:
+                self.videos = set(data["videos"])
 
     def add_vizinho(self, ip):
         self.vizinhoslock.acquire()
