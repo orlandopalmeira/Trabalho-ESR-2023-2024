@@ -1,10 +1,10 @@
 from tkinter import *
 import tkinter.messagebox as tkMessageBox
-from PIL import Image, ImageTk, ImageFile
+from PIL import Image, ImageTk#, ImageFile
 import socket, threading, sys, traceback, os
 import random
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+# ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 from RtpPacket import RtpPacket
 
