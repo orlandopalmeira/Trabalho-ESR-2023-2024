@@ -45,15 +45,14 @@ class Database_RP(Database):
                 print( f"Servidor {serv} não existia")
                 return f"Servidor {serv} não existia"
 
-
-    def adiciona_servidor(self, fonte, metric, contents):
+    def atualiza_servidor(self, fonte, metric, contents):
         with self.serverInfoLock:
             self.serverInfo[fonte] = {"metric": metric, "contents": contents}
 
-    def altera_metrica(self, fonte, metric):
+    def atualiza_metrica(self, fonte, metric):
         with self.serverInfoLock:
             self.serverInfo[fonte]["metric"] = metric
 
-    def altera_contents(self, fonte, contents):
+    def atualiza_contents(self, fonte, contents):
         with self.serverInfoLock:
             self.serverInfo[fonte]["contents"] = contents

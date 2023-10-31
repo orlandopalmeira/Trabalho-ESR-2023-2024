@@ -124,8 +124,8 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 	elif msg.get_tipo() == Mensagem.check_video:
 		videos = db.get_videos()
 		msg = Mensagem(Mensagem.resp_check_video, dados=videos).serialize()
-		print(f"Enviando {msg} para {addr}")
 		socket.sendto(msg, addr)
+		print(f"Enviados os videos {videos} para {addr}")
 
 	elif msg.get_tipo() == Mensagem.metrica:
 		###! UNFINISHED

@@ -70,16 +70,13 @@ def handler_get_videos_from_server(server_ip: str, db: Database_RP):
         print(f"A enviar pedido de vídeos ao servidor {server}")
         sckt.sendto(msg, server)
         try:
-            data = sckt.recvfrom(2048) # aguarda a resposta do servidor
+            data, _ = sckt.recvfrom(1024) # aguarda a resposta do servidor
         except socket.timeout:
             print(f"Timeout ao receber resposta do servidor {server}")
             return
-        print(data)
         if data:
-            print(data)
-            videos = Mensagem.deserialize(data)
-            videos = videos.get_dados()
-            db.adiciona_servidor(server_ip, 0.0, videos)
+            videos = Mensagem.deserialize(data).get_dados()
+            db.atualiza_servidor(server_ip, 0.0, videos)
         else:
             print(f"Resposta vazia do servidor {server_ip}")
     finally:
@@ -119,13 +116,13 @@ def main():
 
     print("A pedir aos servidores os seus vídeos...")
     svc_get_videos_from_servers(db)
-    print("Vídeos recebidos")
+    print("Vídeos recebidos dos servidores")
 
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_check_video, args=(3000, db))
-    svc2_thread = threading.Thread(target=svc_update_metrics, args=(3001, db))
+    # svc2_thread = threading.Thread(target=svc_update_metrics, args=(3001, db))
 
-    threads = [svc1_thread, svc2_thread]
+    threads = [svc1_thread, ]
 
     for t in threads:
         t.daemon = True
