@@ -121,4 +121,18 @@ class Database:
                 if self.pedidosRespondidos[i][0] == id:
                     return True
             return False
+        
+
+
+
+
+    def __str__(self):
+        with self.videoslock:
+            with self.vizinhoslock:
+                with self.routingTableLock:
+                    with self.pedidosRespondidosLock:
+                        return f"Database:\n\tvideos: {self.videos}\n\tvizinhos: {self.vizinhos}\n\troutingTable: {self.routingTable}\n\tpedidosRespondidos: {self.pedidosRespondidos}"
+    
+    def __repr__(self):
+        return self.__str__()
 

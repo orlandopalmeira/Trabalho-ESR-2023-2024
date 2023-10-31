@@ -56,3 +56,18 @@ class Database_RP(Database):
     def atualiza_contents(self, fonte, contents):
         with self.serverInfoLock:
             self.serverInfo[fonte]["contents"] = contents
+
+
+
+    def __str__(self):
+        s = super().__str__()
+        s += "\nServer Info:\n"
+        with self.serverInfoLock:
+            for serv in self.serverInfo:
+                s += f"\t{serv}:\n"
+                for key in self.serverInfo[serv]:
+                    s += f"\t\t{key}: {self.serverInfo[serv][key]}\n"
+        return s
+        
+    def __repr__(self):
+        return self.__str__()

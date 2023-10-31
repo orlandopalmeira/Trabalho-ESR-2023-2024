@@ -61,7 +61,6 @@ def svc_check_video(port:int, db: Database_RP):
 # Pede a um servidor os seus videos
 def handler_get_videos_from_server(server_ip: str, db: Database_RP):
     """Pede a um servidor todos os seus vídeos"""
-    data: bytes = None
     sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sckt.settimeout(6)
@@ -102,6 +101,76 @@ def svc_get_videos_from_servers_continuous(db: Database_RP):
         time.sleep(50)
 
 #!#################################################################################################################
+#* Metricas 
+#! WIP
+
+# Pede a um servidor os seus videos
+def handler_measure_metrics(server_ip: str, db: Database_RP):
+    """Pede a um servidor todos os seus vídeos"""
+    num_of_requests = 10
+    sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sckt.settimeout(6)
+        server = (server_ip, 3010)
+        msgs = []
+        for i in range(num_of_requests):
+            msg = Mensagem(Mensagem.metrica).serialize()
+            msgs.append(msg)
+            sckt.sendto(msg, server)
+            print(f"Enviada mensagem de teste {i} para o servidor {server}")
+
+        successes = 0
+        avg_delivery_time = 0
+        for i, msg in enumerate(msgs):
+            try:
+                data, _ = sckt.recvfrom(1024) # aguarda a resposta do servidor
+                res = Mensagem.deserialize(data)
+                #! Verificar timestamp criada no servidor e medir o tempo
+                if res in msgs:
+                    successes += 1
+                else:
+                    print(f"Resposta {i} do servidor {server} não está no conjunto de mensagens enviadas")
+            except socket.timeout:
+                print(f"Timeout ao receber resposta {i} do servidor {server}")
+                break
+        if successes > 0:
+            avg_delivery_time = avg_delivery_time / successes
+            final_metric = 0.5 * (1 / avg_delivery_time) + 0.5 * (successes/num_of_requests) # Quanto maior a métrica, melhor
+            db.atualiza_metrica(server_ip, final_metric)
+        else:
+            db.atualiza_metrica(server_ip, 0) # 0 significa de métrica, significa que está offline
+
+
+    finally:
+        sckt.close()
+
+def svc_measure_metrics(db: Database_RP):
+    """Pede a todos os servidores os seus vídeos e adiciona-os à bd"""
+    threads = []
+    servers_ips = db.get_servidores()
+    for server_ip in servers_ips:
+        thread = threading.Thread(target=handler_measure_metrics, args=(server_ip, db))
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()
+
+def svc_measure_metrics_continuous(db: Database_RP):
+    while True:
+        svc_measure_metrics(db)
+        time.sleep(60)
+
+#!#################################################################################################################
+
+
+#! Para debug, que mostra o conteúdo da base de dados
+def svc_show_db(db: Database_RP):
+    while True:
+        print("-"*20); print(db); print("-"*20)
+        time.sleep(10)
+
+#!#################################################################################################################
+
 
 def main():
 
@@ -121,8 +190,9 @@ def main():
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_check_video, args=(3000, db))
     # svc2_thread = threading.Thread(target=svc_update_metrics, args=(3001, db))
+    show_thread = threading.Thread(target=svc_show_db, args=(db,))
 
-    threads = [svc1_thread, ]
+    threads = [svc1_thread, show_thread]
 
     for t in threads:
         t.daemon = True
