@@ -11,7 +11,7 @@ from database_server import Database_Server
 from mensagem import Mensagem
 import signal
 
-class Servidor:	
+class ServerWorker:	
 
 	def sendRtp(self):
 		"""Send RTP packets over UDP."""
@@ -28,7 +28,7 @@ class Servidor:
 				try:
 					address = self.clientInfo['rtpAddr']
 					port = int(self.clientInfo['rtpPort'])
-					packet =  self.makeRtp(data, frameNumber)
+					packet =  ServerWorker.makeRtp(data, frameNumber)
 					self.clientInfo['rtpSocket'].sendto(packet,(address,port))
 				except:
 					print("Connection Error")
@@ -39,7 +39,8 @@ class Servidor:
 		self.clientInfo['rtpSocket'].close()
 		print("All done!")
 
-	def makeRtp(self, payload, frameNbr):
+	@staticmethod
+	def makeRtp(payload, frameNbr):
 		"""RTP-packetize the video data."""
 		version = 2
 		padding = 0
@@ -57,10 +58,11 @@ class Servidor:
 		
 		return rtpPacket.getPacket()
 
-	
-	def serve_movie(self, dest_addr:str, dest_port:int, movie_name:str):
+	def stop_serving(self):
+		self.clientInfo['event'].set()
 
-		# Para o indicar onde os filmes estão guardados
+	def serve_movie(self, dest_addr:str, dest_port:int, movie_name:str):
+		# Para indicar onde os filmes estão guardados
 		filename = f"./videos/{movie_name}" # talvez acrescentar no formated string "{movie_name}.Mjpeg"
 
 		self.clientInfo = dict()
@@ -110,17 +112,21 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 		if not db.has_video(video):
 			print(f"START_VIDEO without video: Não tenho o video {video}")
 			raise Exception(f"START_VIDEO without video {video}")
-		dest_addr = addr[0]
-		dest_port = addr[1]
-		s = Servidor()
-		s.serve_movie(dest_addr, dest_port, video)
-		response = f"A enviar o fluxo de video para {dest_addr} na porta {dest_port}"
-		print(response)
+		
+		if not db.is_streaming(video): # só inicia a stream do vídeo se não estiver a emiti-lo
+			dest_addr = addr[0]
+			dest_port = addr[1]
+			sw = ServerWorker()
+			sw.serve_movie(dest_addr, dest_port, video)
+			db.add_stream(video,sw)
+			response = f"A enviar o fluxo de video para {dest_addr} na porta {dest_port}"
+			print(response)
+		else:
+			raise Exception(f"Já iniciei o vídeo '{video}'")
 
 	elif msg.get_tipo() == Mensagem.stop_video:
-		###! UNFINISHED
-		print("STOP_VIDEO-WIP")
-		pass
+		video = msg.get_dados()
+		db.remove_stream(video) # termina o worker que trata de enviar o vídeo e remove-o da base de dados
 
 	elif msg.get_tipo() == Mensagem.check_video:
 		videos = db.get_videos()

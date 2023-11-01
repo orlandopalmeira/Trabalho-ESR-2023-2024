@@ -2,6 +2,7 @@ import threading
 import json
 import datetime
 
+
 class Database_Server:
 
     def __init__(self):
@@ -9,7 +10,7 @@ class Database_Server:
         self.videosLock = threading.Lock()
 
         self.streamsLock = threading.Lock()
-        self.streams = dict() # {nome_video: Servidor}
+        self.streams = dict() # {nome_video: ServerWorker}
 
         self.rp_addr_Lock = threading.Lock()
         self.rp_addr = None # string
@@ -25,7 +26,6 @@ class Database_Server:
             print("AVISO: Não existem videos no ficheiro de configuração!!!")
         with self.rp_addr_Lock:
             self.rp_addr = data["rp_addr"]
-
 
     def add_video(self, video):
         with self.videosLock:
@@ -47,18 +47,24 @@ class Database_Server:
         with self.videosLock:
             return self.videos.copy()
             
-    def add_stream(self, video, event, addr):
+    def add_stream(self, video, serverWorker):
         with self.streamsLock:
-            self.streams[video].append((event, addr))
+            self.streams[video] = serverWorker
 
     def remove_stream(self, video):
         with self.streamsLock:
             try:
-                del self.streams[video]
+                self.streams[video].stop_serving() # faz com que o work que está a emitir o vídeo termine
+                del self.streams[video] # retira a stream da base de dados.
                 return "Streaming removido com sucesso"
             except KeyError:
+                print(self.streams)
                 return "Streaming não existia"
-            
+    
+    def is_streaming(self, video):
+        with self.streamsLock:
+            return video in self.streams.keys()
+
     def is_rp_addr(self, addr):
         with self.rp_addr_Lock:
             return addr == self.rp_addr
