@@ -225,11 +225,14 @@ def main():
 
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
-    svc1_thread = threading.Thread(target=svc_video_reqs, args=(3001, db))
-    svc2_thread = threading.Thread(target=svc_measure_metrics_continuous, args=(db,))
+    svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para n poluir interface
     show_thread = threading.Thread(target=svc_show_db, args=(db,))
 
-    threads = [svc1_thread, svc2_thread, show_thread]
+    threads = [
+        svc1_thread,
+        svc2_thread, 
+        show_thread
+        ]
 
     for t in threads:
         t.daemon = True

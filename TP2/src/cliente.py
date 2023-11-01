@@ -1,4 +1,6 @@
-import sys, socket, json
+import sys
+import socket
+import json
 from tkinter import Tk
 sys.path.append("./Python")
 from ClienteGUI import ClienteGUI
@@ -26,17 +28,17 @@ if __name__ == "__main__":
 	print(f"A pedir o video {video}")
 	
 	dest = (dest_addr, dest_port)
-	socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	# Se não receber resposta em 5 segundos, assume que a rede overlay não tem o vídeo
-	socket.timeout(5)
+	sckt.settimeout(5)
 
 
 	#* Verificação da existencia do video
 	msg = Mensagem(Mensagem.check_video, dados=video, origem=self_ip)
 	msg = msg.serialize()
-	socket.sendto(msg, dest)
+	sckt.sendto(msg, dest)
 	try:
-		msg, addr = socket.recvfrom(1024)
+		msg, addr = sckt.recvfrom(1024)
 	except socket.timeout:
 		print(f"Timeout ao receber resposta CHECK_VIDEO do video {video}")
 		print("Assumido que o vídeo não existe na rede overlay")
@@ -49,11 +51,11 @@ if __name__ == "__main__":
 
 	msg = Mensagem(Mensagem.start_video, dados="movie.Mjpeg", origem=self_ip)
 	msg = msg.serialize()
-	socket.sendto(msg, dest)
+	sckt.sendto(msg, dest)
 	#! Verificar timeouts e assim la dentro do clienteGUI
 	# Create a new client
 	# app = ClienteGUI(root, addr, port)
-	app = ClienteGUI(root, socket)
+	app = ClienteGUI(root, sckt)
 	app.master.title("Cliente Exemplo")	
 	root.mainloop()
 	
