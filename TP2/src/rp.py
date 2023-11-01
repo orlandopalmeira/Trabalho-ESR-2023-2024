@@ -54,7 +54,7 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
             if db.is_streaming_video(video):
                 print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
                 #! Adicionar o addr à lista de clientes que estão a ver o video sendo assim automaticamente reenviado o video para este address
-                pass
+                db.add_streaming(video, threading.Event(), addr)
                 
             else: # Vai buscar o vídeo ao melhor servidor
                 best_server = db.get_best_server(video)
@@ -75,7 +75,7 @@ def relay_video(str_sckt, video, db: Database_RP):
     while True:
         clients = db.get_clients_streaming(video)
         if len(clients) > 0:
-            packet, _ = str_sckt.recvfrom(20480)
+            packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
             for dest in clients:
                 str_sckt.sendto(packet, dest)
         else:
