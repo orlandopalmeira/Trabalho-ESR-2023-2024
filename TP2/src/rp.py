@@ -15,7 +15,7 @@ def ctrlc_handler(sig, frame):
 #!#################################################################################################################
 #! WIP - CHECK_VIDEO AND START_VIDEO TREATMENTS
 
-def handle_video_reqs(msg, sckt, addr:tuple, db: Database_RP):
+def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
     print("A verificar se tem o filme pedido...")
 
@@ -30,52 +30,56 @@ def handle_video_reqs(msg, sckt, addr:tuple, db: Database_RP):
     if tipo == Mensagem.check_video:
         # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
         if db.foi_respondido(pedido_id):
-            print(f"Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
+            print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
             return
         
         # Gestão de pedidos repetidos
         db.add_route(cliente_origem, from_node)
-        print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
+        print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
         db.add_pedido_respondido(pedido_id)
 
         # Resposta ao pedido
         if db.servers_have_video(video):
             msg = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! TEM DE SE IMPLEMENTAR A RESPONSABILIDADE DO NODO RECETOR DE PREENCHER O CAMPO "ORIGEM"
-            sckt.sendto(msg.serialize(), addr)
+            str_sckt.sendto(msg.serialize(), addr)
         else:
-            print("Não existe o filme pedido na rede overlay")
+            print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
             pass # Ignora o pedido
 
-        print(f"Conversação encerrada com {addr}")
+        print(f"CHECK_VIDEO: Conversação encerrada com {addr}")
 
     elif tipo == Mensagem.start_video:
         if db.servers_have_video(video):
-            print(f"O vídeo {video} existe na rede overlay.")
+            print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
             if db.is_streaming_video(video):
-                print(f"O vídeo {video} já está a ser transmitido")
+                print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
                 #! Adicionar o addr à lista de clientes que estão a ver o video sendo assim automaticamente reenviado o video para este address
+                pass
                 
             else: # Vai buscar o vídeo ao melhor servidor
                 best_server = db.get_best_server(video)
-                start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem=cliente_origem)
-                stream_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                stream_socket.settimeout(5)
-                stream_socket.sendto(start_video_msg.serialize(), (best_server, 3000))
+                start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE")
+                str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                str_sckt.settimeout(5)
+                str_sckt.sendto(start_video_msg.serialize(), (best_server, 3000))
                 db.add_streaming(video, threading.Event(), addr)
                 #! Cria-se aqui uma nova thread??
-                relay_video(stream_socket, video, db)
+                relay_video(str_sckt, video, db)
 
         else: 
-            print(f"O video {video} não existe na rede overlay.")
-            print(f"Pedido de {cliente_origem} ignorado!")
+            print(f"START_VIDEO: O video {video} não existe na rede overlay.")
+            print(f"START_VIDEO: Pedido de {cliente_origem} ignorado!")
 
-def relay_video(sckt, video, db: Database_RP):
+def relay_video(str_sckt, video, db: Database_RP):
+    print("Hello from relay_video")
     while True:
+        print("Hello from relay_video while loop")
         clients = db.get_clients_streaming(video)
+        print(clients)
         if len(clients) > 0:
-            packet, _ = sckt.recvfrom(2048)
+            packet, _ = str_sckt.recvfrom(2048)
             for dest in clients:
-                sckt.sendto(packet, dest)
+                str_sckt.sendto(packet, dest)
         else:
             db.remove_streaming(video)
             break
@@ -178,8 +182,10 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
                 break
         if successes > 0:
             avg_delivery_time = sum_delivery_time / successes
+            avg_delivery_time = round(avg_delivery_time, 10)
             final_metric = 0.5 * (1 / avg_delivery_time) + 0.5 * (successes/num_of_requests) # Quanto maior a métrica, melhor
             # final_metric = (1 - (avg_delivery_time / "Max Tolerable Delay Time")) * ((successes/num_of_requests) * 100)
+            final_metric = round(final_metric, 4)
             db.atualiza_metrica(server_ip, final_metric)
         else:
             final_metric = 0
