@@ -13,8 +13,8 @@ def ctrlc_handler(sig, frame):
     sys.exit(0)
 
 #!#################################################################################################################
-#! WIP
-# Verifica se tem o filme pedido e adiciona o cliente à sua routingTable
+#! WIP - CHECK_VIDEO AND START_VIDEO TREATMENTS
+
 def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
     print("A verificar se tem o filme pedido...")
@@ -53,14 +53,25 @@ def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
                 stream_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 stream_socket.settimeout(5)
                 stream_socket.sendto(start_video_msg.serialize(), (best_server, 3000))
-                #! Cria-se aqui uma nova thread?? Como é criado o evento para estar relativo à thread em que isto está a correr?
                 db.add_streaming(video, (threading.Event(), addr))
+                #! Cria-se aqui uma nova thread??
+                relay_video(stream_socket, db)
 
         else: 
             print(f"O video {video} não existe na rede overlay.")
             print(f"Pedido de {cliente_origem} ignorado!")
 
-# Serviço relativo à verificação se tem o filme pedido e adiciona o cliente à sua routingTable
+def relay_video(sckt, video, db: Database_RP):
+    while True:
+        clients = db.get_clients_streaming(video)
+        if len(clients) > 0:
+            packet, _ = sckt.recvfrom(2048)
+            for dest in clients:
+                sckt.sendto(packet, dest)
+        else:
+            db.remove_streaming(video)
+            break
+
 def svc_video_reqs(port:int, db: Database_RP):
     service_name = "svc_check_video"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -47,14 +47,18 @@ class Database:
             return self.vizinhos.copy()
     
     def quantos_vizinhos(self):
-        self.vizinhoslock.acquire()
-        quantos = len(self.vizinhos)
-        self.vizinhoslock.release()
+        with self.vizinhoslock:
+            quantos = len(self.vizinhos)
         return quantos
 
     def is_streaming_video(self, video):
         with self.streamingLock:
             return video in self.streaming
+        
+    def get_clients_streaming(self, video):
+        with self.streamingLock:
+            tuples = self.streaming[video].copy()
+        return list(map(lambda x: x[1], tuples))
             
     def add_streaming(self, video, event, addr):
         with self.streamingLock:
