@@ -9,7 +9,7 @@ class Database_Server:
         self.videosLock = threading.Lock()
 
         self.streamsLock = threading.Lock()
-        self.streams = dict() # {nome_video: [(thread.event, addr)]}
+        self.streams = dict() # {nome_video: Servidor}
 
         self.rp_addr_Lock = threading.Lock()
         self.rp_addr = None # string

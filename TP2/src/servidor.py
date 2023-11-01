@@ -112,7 +112,8 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 			raise Exception(f"START_VIDEO without video {video}")
 		dest_addr = addr[0]
 		dest_port = addr[1]
-		(Servidor()).serve_movie(dest_addr, dest_port, video)
+		s = Servidor()
+		s.serve_movie(dest_addr, dest_port, video)
 		response = f"A enviar o fluxo de video para {dest_addr} na porta {dest_port}"
 		print(response)
 
