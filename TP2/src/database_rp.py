@@ -19,8 +19,8 @@ class Database_RP(Database):
             for s in servs:
                 self.serverInfo[s] = dict()
 
-    def get_best_server(self, movie_name):
-        """Retorna o melhor servidor para o filme movie_name"""
+    def get_best_server(self, movie_name) -> str:
+        """Retorna o ip do melhor servidor para o filme movie_name"""
         with self.serverInfoLock:
             best = None
             for serv in self.serverInfo:
@@ -28,6 +28,14 @@ class Database_RP(Database):
                     if best == None or self.serverInfo[serv]["metric"] < self.serverInfo[best]["metric"]:
                         best = serv
         return best
+    
+    def servers_have_video(self, movie_name) -> bool:
+        """Retorna True se algum servidor tiver o filme movie_name"""
+        with self.serverInfoLock:
+            for serv in self.serverInfo:
+                if movie_name in self.serverInfo[serv]["contents"]:
+                    return True
+        return False
 
     def get_servidores(self):
         """Retorna os ips dos servidores"""

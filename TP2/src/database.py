@@ -6,8 +6,6 @@ class Database:
     # shared_variable = 0  # This is a class variable
 
     def __init__(self):
-        self.videos = set() # conjunto de ids de videos
-        self.videoslock = threading.Lock()
 
         self.streamingLock = threading.Lock()
         self.streaming = dict() # {nome_video: [(thread.event, addr)]}
@@ -29,10 +27,6 @@ class Database:
             data = json.load(f)
         with self.vizinhoslock:
             self.vizinhos = set(data["vizinhos"])
-        if "videos" in data:
-            print("\n\nPASSEI AQUI\n\n\n\n\n")
-            with self.videoslock:
-                self.videos = set(data["videos"])
 
     def add_vizinho(self, ip):
         self.vizinhoslock.acquire()
@@ -58,22 +52,9 @@ class Database:
         self.vizinhoslock.release()
         return quantos
 
-    def add_video(self, video):
-        self.videoslock.acquire()
-        self.videos.add(video)
-        self.videoslock.release()
-
-    def remove_video(self, video):
-        with self.videoslock:
-            try:
-                self.videos.remove(video)
-                return "Vídeo removido com sucesso"
-            except KeyError:
-                return "Video não existia"
-            
-    def has_video(self, video):
-        with self.videoslock:
-            return video in self.videos
+    def is_streaming_video(self, video):
+        with self.streamingLock:
+            return video in self.streaming
             
     def add_streaming(self, video, event, addr):
         with self.streamingLock:

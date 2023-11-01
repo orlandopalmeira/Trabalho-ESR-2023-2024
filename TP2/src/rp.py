@@ -15,31 +15,51 @@ def ctrlc_handler(sig, frame):
 #!#################################################################################################################
 #! WIP
 # Verifica se tem o filme pedido e adiciona o cliente à sua routingTable
-def handle_check_video(msg, socket, addr:tuple, db: Database_RP):
+def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
     print("A verificar se tem o filme pedido...")
 
     msg = Mensagem.deserialize(msg)
 
+    tipo = msg.get_tipo()
     pedido_id = msg.get_id()
     cliente_origem = msg.get_origem()
     from_node = addr[0]
     video = msg.get_dados()
 
-    # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
-    if not db.foi_respondido(pedido_id):
-        db.add_route(cliente_origem, from_node)
-        print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
-        db.add_pedido_respondido(pedido_id)
-    else:
-        print("Pedido já foi respondido")
+    if tipo == Mensagem.check_video:
+        # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
+        if not db.foi_respondido(pedido_id):
+            db.add_route(cliente_origem, from_node)
+            print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
+            db.add_pedido_respondido(pedido_id)
+        else:
+            print(f"Pedido do vizinho {addr} já foi respondido")
 
-    response = "Sucesso!"
-    socket.sendto(response.encode('utf-8'), addr)
-    print(f"Conversação encerrada com {addr}")
+        response = "Sucesso!"
+        socket.sendto(response.encode('utf-8'), addr)
+        print(f"Conversação encerrada com {addr}")
+
+    elif tipo == Mensagem.start_video:
+        if db.servers_have_video(video):
+            print(f"O vídeo {video} existe na rede overlay.")
+            if db.is_streaming_video(video):
+                print(f"O vídeo {video} já está a ser transmitido")
+                #! Adicionar o addr à lista de clientes que estão a ver o video sendo assim automaticamente reenviado o video para este address
+                
+            else: # Vai buscar o vídeo ao melhor servidor
+                best_server = db.get_best_server(video)
+                start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem=cliente_origem)
+                stream_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                stream_socket.settimeout(5)
+                stream_socket.sendto(start_video_msg.serialize(), (best_server, 3000))
+                
+        else: 
+            print(f"O video {video} não existe na rede overlay.")
+            print(f"Pedido de {cliente_origem} ignorado!")
 
 # Serviço relativo à verificação se tem o filme pedido e adiciona o cliente à sua routingTable
-def svc_check_video(port:int, db: Database_RP):
+def svc_video_reqs(port:int, db: Database_RP):
     service_name = "svc_check_video"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
@@ -49,7 +69,7 @@ def svc_check_video(port:int, db: Database_RP):
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_check_video, args=(dados, server_socket, addr, db)).start()
+            threading.Thread(target=handle_video_reqs, args=(dados, server_socket, addr, db)).start()
         except Exception as e:
             print(f"Erro svc_check_video: {e}")
             break
@@ -103,7 +123,6 @@ def svc_get_videos_from_servers_continuous(db: Database_RP):
 
 #!#################################################################################################################
 #* Metricas 
-#! WIP
 
 # Pede a um servidor os seus videos
 def handler_measure_metrics(server_ip: str, db: Database_RP):
@@ -167,7 +186,6 @@ def svc_measure_metrics_continuous(db: Database_RP):
 
 #!#################################################################################################################
 
-
 #! Para debug, que mostra o conteúdo da base de dados
 def svc_show_db(db: Database_RP):
     while True:
@@ -193,7 +211,8 @@ def main():
     print("Vídeos recebidos dos servidores")
 
     # Inicia os serviços em threads separadas
-    svc1_thread = threading.Thread(target=svc_check_video, args=(3000, db))
+    svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
+    svc1_thread = threading.Thread(target=svc_video_reqs, args=(3001, db))
     svc2_thread = threading.Thread(target=svc_measure_metrics_continuous, args=(db,))
     show_thread = threading.Thread(target=svc_show_db, args=(db,))
 
