@@ -62,7 +62,7 @@ class Database:
             
     def add_streaming(self, video, event, addr):
         with self.streamingLock:
-            if video in self.streaming.keys():
+            if video in self.streaming:
                 self.streaming[video].append((event, addr))
             else:
                 self.streaming[video] = [(event,addr)]
@@ -115,12 +115,12 @@ class Database:
 
 
     def __str__(self):
-        with self.videoslock:
-            with self.vizinhoslock:
-                with self.routingTableLock:
-                    with self.pedidosRespondidosLock:
-                        return f"Database:\n\tvideos: {self.videos}\n\tvizinhos: {self.vizinhos}\n\troutingTable: {self.routingTable}\n\tpedidosRespondidos: {self.pedidosRespondidos}"
-    
+        with self.vizinhoslock:
+            with self.routingTableLock:
+                with self.pedidosRespondidosLock:
+                    with self.streamingLock:
+                        return f"Database:\n\tvizinhos: {self.vizinhos}\n\troutingTable: {self.routingTable}\n\tpedidosRespondidos: {self.pedidosRespondidos}\n\tstreaming: {self.streaming}"
+
     def __repr__(self):
         return self.__str__()
 

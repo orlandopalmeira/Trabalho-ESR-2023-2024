@@ -27,7 +27,8 @@ if __name__ == "__main__":
 	
 	dest = (dest_addr, dest_port)
 	socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	socket.timeout(5) # Se não receber resposta em 5 segundos, assume que a rede overlay não tem o vídeo
+	# Se não receber resposta em 5 segundos, assume que a rede overlay não tem o vídeo
+	socket.timeout(5)
 
 
 	#* Verificação da existencia do video
