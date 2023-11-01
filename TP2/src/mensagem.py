@@ -15,9 +15,9 @@ class Mensagem:
     # def __init__(self, tipo:int, origem:str, dados):
     def __init__(self, tipo:int, dados="", origem:str = "dummy_ip"):
         self.tipo = tipo
-        self.id = random.randint(0, 1000)
-        self.dados = dados
-        self.origem = origem # IP da origem do pedido
+        self.id:int = random.randint(0, 1000)
+        self.dados:str = dados
+        self.origem:str = origem # IP da origem do pedido
         self.timestamp = None # datetime.datetime.now() #! Talvez meter um método que atualize isto e talvez ate por esse metodo a ser chamado no Serialize() que é o ultimo sitio que ocorre possiveis alterações ao objeto
 
     def get_id(self):

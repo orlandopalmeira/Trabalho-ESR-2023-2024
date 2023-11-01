@@ -15,7 +15,7 @@ def ctrlc_handler(sig, frame):
 #!#################################################################################################################
 #! WIP - CHECK_VIDEO AND START_VIDEO TREATMENTS
 
-def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
+def handle_video_reqs(msg, sckt, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
     print("A verificar se tem o filme pedido...")
 
@@ -29,15 +29,23 @@ def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
 
     if tipo == Mensagem.check_video:
         # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
-        if not db.foi_respondido(pedido_id):
-            db.add_route(cliente_origem, from_node)
-            print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
-            db.add_pedido_respondido(pedido_id)
-        else:
-            print(f"Pedido do vizinho {addr} já foi respondido")
+        if db.foi_respondido(pedido_id):
+            print(f"Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
+            return
+        
+        # Gestão de pedidos repetidos
+        db.add_route(cliente_origem, from_node)
+        print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
+        db.add_pedido_respondido(pedido_id)
 
-        response = "Sucesso!"
-        socket.sendto(response.encode('utf-8'), addr)
+        # Resposta ao pedido
+        if db.servers_have_video(video):
+            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! TEM DE SE IMPLEMENTAR A RESPONSABILIDADE DO NODO RECETOR DE PREENCHER O CAMPO "ORIGEM"
+            sckt.sendto(msg.serialize(), addr)
+        else:
+            print("Não existe o filme pedido na rede overlay")
+            pass # Ignora o pedido
+
         print(f"Conversação encerrada com {addr}")
 
     elif tipo == Mensagem.start_video:
@@ -53,9 +61,9 @@ def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
                 stream_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 stream_socket.settimeout(5)
                 stream_socket.sendto(start_video_msg.serialize(), (best_server, 3000))
-                db.add_streaming(video, (threading.Event(), addr))
+                db.add_streaming(video, threading.Event(), addr)
                 #! Cria-se aqui uma nova thread??
-                relay_video(stream_socket, db)
+                relay_video(stream_socket, video, db)
 
         else: 
             print(f"O video {video} não existe na rede overlay.")
@@ -226,12 +234,12 @@ def main():
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
     svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para n poluir interface
-    show_thread = threading.Thread(target=svc_show_db, args=(db,))
+    # show_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
         svc1_thread,
         svc2_thread, 
-        show_thread
+        # show_thread
         ]
 
     for t in threads:

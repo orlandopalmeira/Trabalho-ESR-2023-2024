@@ -18,7 +18,8 @@ if __name__ == "__main__":
 	with open(sys.argv[1]) as f:
 		config = json.load(f)
 
-	#* Configuração do cliente
+	#* Configuração do cliente 
+	#! Talvez meter type check nisto para ver se é string e tal, pq me deu trabalho de identificar que estava aqui um problema
 	self_ip = config["self_ip"]
 	dest_addr = config["vizinho"]
 	dest_port = 3000
