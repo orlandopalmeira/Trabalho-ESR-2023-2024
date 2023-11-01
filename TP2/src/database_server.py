@@ -9,11 +9,11 @@ class Database_Server:
         self.videos = set() # conjunto de ids de videos
         self.videosLock = threading.Lock()
 
-        self.streamsLock = threading.Lock()
         self.streams = dict() # {nome_video: ServerWorker}
+        self.streamsLock = threading.Lock()
 
-        self.rp_addr_Lock = threading.Lock()
         self.rp_addr = None # string
+        self.rp_addr_Lock = threading.Lock()
 
     # Lê o ficheiro de configuração JSON e guarda o necessário na base de dados
     def read_config_file(self, filepath):
