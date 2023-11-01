@@ -64,24 +64,31 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
                 str_sckt.sendto(start_video_msg.serialize(), (best_server, 3000))
                 db.add_streaming(video, threading.Event(), addr)
                 #! Cria-se aqui uma nova thread??
-                relay_video(str_sckt, video, db)
+                relay_video(str_sckt, video, (best_server, 3000), db)
 
         else: 
             print(f"START_VIDEO: O video {video} não existe na rede overlay.")
             print(f"START_VIDEO: Pedido de {cliente_origem} ignorado!")
+    elif tipo == Mensagem.stop_video:
+        video = msg.get_dados()
+        print(db.remove_streaming(video, addr))
 
-def relay_video(str_sckt, video, db: Database_RP):
+def relay_video(str_sckt, video, server: tuple, db: Database_RP):
     print("Hello from relay_video")
     while True:
-        clients = db.get_clients_streaming(video)
-        if len(clients) > 0:
+        clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
+        print('len clients: ', len(clients))
+        if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
             packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
-            for dest in clients:
+            for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
-        else:
-            db.remove_streaming(video)
+        else: # não existem mais dispositivos a querer ver o vídeo
+            db.remove_streaming(video) # pára a stream
             break
-    str_sckt.close()
+    stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
+    str_sckt.sendto(stop_video_msg, server)
+    str_sckt.close() 
+    print(f"Streaming de '{video}' terminada")
 
 def svc_video_reqs(port:int, db: Database_RP):
     service_name = "svc_check_video"

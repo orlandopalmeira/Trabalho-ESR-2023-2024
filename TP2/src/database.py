@@ -67,10 +67,11 @@ class Database:
             else:
                 self.streaming[video] = [(event,addr)]
 
-    def remove_streaming(self, video):
+    def remove_streaming(self, video, addr):
         with self.streamingLock:
             try:
-                del self.streaming[video]
+                ip = addr[0]
+                self.streaming[video] = [x for x in self.streaming[video] if x[1][1] != ip]
                 return "Streaming removido com sucesso"
             except KeyError:
                 return "Streaming não existia"

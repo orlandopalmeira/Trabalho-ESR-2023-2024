@@ -49,14 +49,18 @@ if __name__ == "__main__":
 	print("Reposta a CHECK_VIDEO:")
 	print(msg)
 
-
-	msg = Mensagem(Mensagem.start_video, dados="movie.Mjpeg", origem=self_ip)
+	msg = Mensagem(Mensagem.start_video, dados=video, origem=self_ip)
 	msg = msg.serialize()
 	sckt.sendto(msg, dest)
-	#! Verificar timeouts e assim la dentro do clienteGUI
-	# Create a new client
-	# app = ClienteGUI(root, addr, port)
-	app = ClienteGUI(root, sckt)
-	app.master.title("Cliente Exemplo")	
-	root.mainloop()
+	try:
+		#! Verificar timeouts e assim la dentro do clienteGUI
+		# Create a new client
+		# app = ClienteGUI(root, addr, port)
+		app = ClienteGUI(root, sckt)
+		app.master.title("Cliente Exemplo")	
+		root.mainloop()
+	finally:
+		print("A terminar vídeo...")
+		stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
+		sckt.sendto(stop_video_msg, dest)
 	
