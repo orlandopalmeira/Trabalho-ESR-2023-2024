@@ -13,7 +13,7 @@ def ctrlc_handler(sig, frame):
     sys.exit(0)
 
 #!#################################################################################################################
-#! WIP - CHECK_VIDEO AND START_VIDEO TREATMENTS
+#* CHECK_VIDEO and START_VIDEO treatments
 
 def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
@@ -53,7 +53,6 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
             print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
             if db.is_streaming_video(video):
                 print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
-                #! Adicionar o addr à lista de clientes que estão a ver o video sendo assim automaticamente reenviado o video para este address
                 db.add_streaming(video, threading.Event(), addr)
                 
             else: # Vai buscar o vídeo ao melhor servidor
@@ -238,13 +237,13 @@ def main():
 
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
-    svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para n poluir interface
-    # show_thread = threading.Thread(target=svc_show_db, args=(db,))
+    svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
+    show_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
         svc1_thread,
         svc2_thread, 
-        # show_thread
+        show_thread
         ]
 
     for t in threads:

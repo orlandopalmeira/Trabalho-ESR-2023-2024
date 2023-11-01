@@ -7,8 +7,8 @@ class Database:
 
     def __init__(self):
 
-        self.streamingLock = threading.Lock()
         self.streaming = dict() # {nome_video: [(thread.event, addr)]}
+        self.streamingLock = threading.Lock()
 
         self.vizinhos = set()
         self.vizinhoslock = threading.Lock()
@@ -29,9 +29,8 @@ class Database:
             self.vizinhos = set(data["vizinhos"])
 
     def add_vizinho(self, ip):
-        self.vizinhoslock.acquire()
-        self.vizinhos.add(ip)
-        self.vizinhoslock.release()
+        with self.vizinhoslock:
+            self.vizinhos.add(ip)
 
     def remove_vizinho(self, ip):
         with self.vizinhoslock:

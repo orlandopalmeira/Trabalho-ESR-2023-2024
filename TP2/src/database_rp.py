@@ -7,8 +7,8 @@ class Database_RP(Database):
     def __init__(self):
         super().__init__()
 
-        self.serverInfoLock = threading.Lock()
         self.serverInfo = dict() # ip-fonte: {"metric": metric:int, "contents": contents:list_of_videos}
+        self.serverInfoLock = threading.Lock()
 
     def read_config_file(self, filepath):
         super().read_config_file(filepath)
