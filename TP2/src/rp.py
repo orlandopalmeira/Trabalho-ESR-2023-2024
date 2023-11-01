@@ -17,7 +17,6 @@ def ctrlc_handler(sig, frame):
 
 def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
-    print("A verificar se tem o filme pedido...")
 
     msg = Mensagem.deserialize(msg)
 
@@ -82,8 +81,8 @@ def relay_video(str_sckt, video, server: tuple, db: Database_RP):
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
-            db.remove_streaming(video) # pára a stream
-            break
+            break # pára a stream
+        
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
     str_sckt.sendto(stop_video_msg, server)
     str_sckt.close() 

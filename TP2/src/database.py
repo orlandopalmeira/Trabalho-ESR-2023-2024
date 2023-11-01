@@ -56,6 +56,8 @@ class Database:
         
     def get_clients_streaming(self, video):
         with self.streamingLock:
+            if video not in self.streaming:
+                return []
             tuples = self.streaming[video].copy()
         return list(map(lambda x: x[1], tuples))
             
@@ -69,12 +71,13 @@ class Database:
     def remove_streaming(self, video, addr):
         with self.streamingLock:
             try:
-                ip = addr[0]
-                self.streaming[video] = [x for x in self.streaming[video] if x[1][1] != ip]
+                self.streaming[video] = [x for x in self.streaming[video] if x[1] != addr]
+                if len(self.streaming[video]) == 0:
+                    del self.streaming[video]
                 return "Streaming removido com sucesso"
             except KeyError:
                 return "Streaming não existia"
-            
+
     def add_route(self, ip_destino:str, ip_vizinho:str):
         with self.routingTableLock:
             self.routingTable[ip_destino] = ip_vizinho
