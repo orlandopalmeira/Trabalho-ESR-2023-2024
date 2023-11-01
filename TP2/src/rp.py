@@ -53,7 +53,9 @@ def handle_video_reqs(msg, socket, addr:tuple, db: Database_RP):
                 stream_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 stream_socket.settimeout(5)
                 stream_socket.sendto(start_video_msg.serialize(), (best_server, 3000))
-                
+                #! Cria-se aqui uma nova thread?? Como é criado o evento para estar relativo à thread em que isto está a correr?
+                db.add_streaming(video, (threading.Event(), addr))
+
         else: 
             print(f"O video {video} não existe na rede overlay.")
             print(f"Pedido de {cliente_origem} ignorado!")
