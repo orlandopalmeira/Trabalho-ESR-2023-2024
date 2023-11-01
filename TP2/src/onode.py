@@ -120,33 +120,84 @@ def svc_show_vizinhos(db: Database):
         time.sleep(5)
 
 #!#################################################################################################################
-#! WIP
-# Verifica se tem o filme pedido e adiciona o cliente à sua routingTable
-def handle_check_video(msg, socket, addr:tuple, db: Database):
+#! COPIED FROM RP.PY - UNFINISHED - VAI SER NECESSÁRIO RECOPIAR O CODIGO DO RP.PY
+#* CHECK_VIDEO and START_VIDEO treatments
+
+
+def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database):
     print(f"Conversação estabelecida com {addr}")
-    print("A verificar se tem o filme pedido...")
 
     msg = Mensagem.deserialize(msg)
 
+    tipo = msg.get_tipo()
     pedido_id = msg.get_id()
     cliente_origem = msg.get_origem()
     from_node = addr[0]
     video = msg.get_dados()
 
-    # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
-    if not db.foi_respondido(pedido_id):
+    if tipo == Mensagem.check_video:
+        # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
+        if db.foi_respondido(pedido_id):
+            print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
+            return
+        
+        # Gestão de pedidos repetidos
         db.add_route(cliente_origem, from_node)
-        print(f"Adicionada entrada {cliente_origem}:{from_node} à routing table")
+        print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
         db.add_pedido_respondido(pedido_id)
-    else:
-        print("Pedido já foi respondido")
 
-    response = "Sucesso!"
-    socket.sendto(response.encode('utf-8'), addr)
-    print(f"Conversação encerrada com {addr}")
+        # Resposta ao pedido
+        if db.servers_have_video(video):
+            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! TEM DE SE IMPLEMENTAR A RESPONSABILIDADE DO NODO RECETOR DE PREENCHER O CAMPO "ORIGEM"
+            str_sckt.sendto(msg.serialize(), addr)
+        else:
+            print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
+            pass # Ignora o pedido
 
-# Serviço relativo à verificação se tem o filme pedido e adiciona o cliente à sua routingTable
-def svc_check_video(port:int, db: Database):
+        print(f"CHECK_VIDEO: Conversação encerrada com {addr}")
+
+    elif tipo == Mensagem.start_video:
+        if db.servers_have_video(video):
+            print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
+            if db.is_streaming_video(video):
+                print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
+                db.add_streaming(video, threading.Event(), addr)
+                
+            else: # Vai buscar o vídeo ao melhor servidor
+                best_server = db.get_best_server(video)
+                start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE")
+                str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                str_sckt.settimeout(5)
+                str_sckt.sendto(start_video_msg.serialize(), (best_server, 3000))
+                db.add_streaming(video, threading.Event(), addr)
+                #! Cria-se aqui uma nova thread??
+                relay_video(str_sckt, video, (best_server, 3000), db)
+
+        else: 
+            print(f"START_VIDEO: O video {video} não existe na rede overlay.")
+            print(f"START_VIDEO: Pedido de {cliente_origem} ignorado!")
+    elif tipo == Mensagem.stop_video:
+        video = msg.get_dados()
+        print(db.remove_streaming(video, addr))
+
+def relay_video(str_sckt, video, server: tuple, db: Database):
+    print("Hello from relay_video")
+    while True:
+        clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
+        print('len clients: ', len(clients))
+        if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
+            packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
+            for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
+                str_sckt.sendto(packet, dest)
+        else: # não existem mais dispositivos a querer ver o vídeo
+            break # pára a stream
+        
+    stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
+    str_sckt.sendto(stop_video_msg, server)
+    str_sckt.close() 
+    print(f"Streaming de '{video}' terminada")
+
+def svc_video_reqs(port:int, db: Database):
     service_name = "svc_check_video"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
@@ -156,7 +207,7 @@ def svc_check_video(port:int, db: Database):
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_check_video, args=(dados, server_socket, addr, db)).start()
+            threading.Thread(target=handle_video_reqs, args=(dados, server_socket, addr, db)).start()
         except Exception as e:
             print(f"Erro svc_check_video: {e}")
             break
@@ -177,13 +228,19 @@ def main():
     signal.signal(signal.SIGINT, ctrlc_handler)
 
     # Inicia os serviços em threads separadas
-    svc1_thread = threading.Thread(target=svc_attend_clients, args=(3000, db))
-    svc2_thread = threading.Thread(target=svc_add_vizinhos, args=(3001, db))
-    svc3_thread = threading.Thread(target=svc_remove_vizinhos, args=(3002, db))
-    svc4_thread = threading.Thread(target=svc_check_video, args=(3003, db))
+    svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
+    svc2_thread = threading.Thread(target=svc_attend_clients, args=(3003, db))
+    svc3_thread = threading.Thread(target=svc_add_vizinhos, args=(3001, db))
+    svc4_thread = threading.Thread(target=svc_remove_vizinhos, args=(3002, db))
     svc5_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
 
-    threads = [svc1_thread, svc2_thread, svc3_thread, svc4_thread, svc5_thread]
+    threads=[   
+        svc1_thread,
+        svc2_thread,
+        svc3_thread,
+        svc4_thread,
+        svc5_thread
+    ]
 
     for t in threads:
         t.daemon = True
