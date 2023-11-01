@@ -73,16 +73,15 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
 def relay_video(str_sckt, video, db: Database_RP):
     print("Hello from relay_video")
     while True:
-        print("Hello from relay_video while loop")
         clients = db.get_clients_streaming(video)
-        print(clients)
         if len(clients) > 0:
-            packet, _ = str_sckt.recvfrom(2048)
+            packet, _ = str_sckt.recvfrom(20480)
             for dest in clients:
                 str_sckt.sendto(packet, dest)
         else:
             db.remove_streaming(video)
             break
+    str_sckt.close()
 
 def svc_video_reqs(port:int, db: Database_RP):
     service_name = "svc_check_video"
