@@ -62,7 +62,10 @@ class Database:
             
     def add_streaming(self, video, event, addr):
         with self.streamingLock:
-            self.streaming[video].append((event, addr))
+            if video in self.streaming.keys():
+                self.streaming[video].append((event, addr))
+            else:
+                self.streaming[video] = [(event,addr)]
 
     def remove_streaming(self, video):
         with self.streamingLock:
