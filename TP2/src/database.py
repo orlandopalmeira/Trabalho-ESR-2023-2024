@@ -45,6 +45,10 @@ class Database:
         with self.vizinhoslock:
             return self.vizinhos.copy()
     
+    def get_vizinhos_for_broadcast(self, exclude_address):
+        with self.vizinhoslock:
+            return [v for v in self.vizinhos if v != exclude_address]
+
     def quantos_vizinhos(self):
         with self.vizinhoslock:
             quantos = len(self.vizinhos)

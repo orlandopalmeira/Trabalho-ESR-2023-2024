@@ -198,7 +198,7 @@ def relay_video(str_sckt, video, server: tuple, db: Database):
     print(f"Streaming de '{video}' terminada")
 
 def svc_video_reqs(port:int, db: Database):
-    service_name = "svc_check_video"
+    service_name = "svc_video_reqs"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
     server_socket.bind((endereco, port))
@@ -209,9 +209,59 @@ def svc_video_reqs(port:int, db: Database):
             dados, addr = server_socket.recvfrom(1024)
             threading.Thread(target=handle_video_reqs, args=(dados, server_socket, addr, db)).start()
         except Exception as e:
-            print(f"Erro svc_check_video: {e}")
+            print(f"Erro svc_video_reqs: {e}")
             break
 
+    server_socket.close()
+
+#!#################################################################################################################
+#* Serviço de check_video
+def handle_check_video_req(data: bytes, pedinte: tuple, sckt, db: Database):
+    msg = Mensagem.deserialize(data)
+    tipo = msg.get_tipo()
+    if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
+        video = msg.get_dados()
+        if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
+            response = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! o próximo nodo tem de colocar o seu IP
+            sckt.sendto(response, pedinte)
+        else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
+            vizinhos = db.get_vizinhos_for_broadcast(pedinte[0])
+            msg_para_vizinhos = msg.serialize() #> para pedir o check video aos vizinhos (reaproveita a mensagem do cliente para manter o ID)
+            vizinhos_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> este socket serve apenas para ele perguntar aos vizinhos se eles têm o vídeo 
+            vizinhos_socket.settimeout(5) #> Se o vizinho não encontrar o vídeo ele não responde, pelo que temos de definir um tempo máximo de espera. Se ultrapassar esse tempo, assumimos que o vizinho não encontrou nada.
+
+            # Check video aos vizinhos
+            for vizinho in vizinhos:
+                vizinho = (vizinho,3003) #! serviço de check vídeo a ser atendido na porta 3003, ver melhor isto para não haver problemas de portas
+                vizinhos_socket.sendto(msg_para_vizinhos, vizinho) #> faz um check_video ao vizinho
+                
+            # Recepção das respostas dos vizinhos
+            for vizinho in vizinhos: #> verifica respostas dos vizinhos até encontrar uma que indique alguém que tenha o vídeo
+                try:
+                    resp_vizinho, _ = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
+                    resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
+                    if resp_vizinho.get_dados(): #> o vizinho tem o vídeo
+                        sckt.sendto(resp_vizinho.serialize(), pedinte) #> envia a resposta do vizinho com as informações necessárias
+                        break #> termina a recepção de mensagens porque já encontrou quem tem o vídeo
+                except socket.timeout: 
+                    pass
+            
+            vizinhos_socket.close()
+
+def svc_check_video(port:int, db: Database):
+    service_name = "svc_check_video"
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    endereco = '0.0.0.0' # Listen on all interfaces
+    server_socket.bind((endereco, port))
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_check_video_req, args=(dados,addr,server_socket,db)).start()
+        except Exception as e:
+            print(f"Erro svc_video_reqs: {e}")
+            break
     server_socket.close()
 
 #!#################################################################################################################
@@ -229,17 +279,19 @@ def main():
 
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
-    svc2_thread = threading.Thread(target=svc_attend_clients, args=(3003, db))
-    svc3_thread = threading.Thread(target=svc_add_vizinhos, args=(3001, db))
-    svc4_thread = threading.Thread(target=svc_remove_vizinhos, args=(3002, db))
-    svc5_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
+    svc2_thread = threading.Thread(target=svc_add_vizinhos, args=(3001, db))
+    svc3_thread = threading.Thread(target=svc_remove_vizinhos, args=(3002, db))
+    svc4_thread = threading.Thread(target=svc_check_video, args=(3003,db))
+    svc5_thread = threading.Thread(target=svc_attend_clients, args=(3004, db))
+    svc6_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
 
     threads=[   
         svc1_thread,
         svc2_thread,
         svc3_thread,
         svc4_thread,
-        svc5_thread
+        svc5_thread,
+        svc6_thread
     ]
 
     for t in threads:
