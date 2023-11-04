@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     # destination_ip = '10.0.4.10'
     destination_ip = sys.argv[1]
-    destination_port = 3000
+    destination_port = 3001
     if len(sys.argv) >= 3:
         destination_port = int(sys.argv[2])
 

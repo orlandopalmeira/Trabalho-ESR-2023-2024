@@ -12,6 +12,7 @@ from utils import get_ips
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
 V_STOP_PORT = 3003 #> Porta de atendimento do serviço stop_videos
+METRICS_PORT = 3010 #> Porta para solicitar a métrica ao Servidor
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
 def ctrlc_handler(sig, frame):
@@ -58,6 +59,7 @@ def handle_check_video_req(msg, sckt, addr:tuple, db: Database_RP):
         if db.servers_have_video(video):
             #! Já é possivel determinar o endereço em que estamos, comentario seguinte 
             origem = sckt.getsockname()[0] #! TESTAR ISTO
+            print(f'ORIGEM: {sckt.getsockname()[0]}')
             msg = Mensagem(Mensagem.resp_check_video, dados=True, origem=origem)
             sckt.sendto(msg.serialize(), addr)
         else:
@@ -76,11 +78,26 @@ def svc_check_video(db: Database_RP):
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_check_video_req, args=(dados,addr,server_socket,db)).start()
+            threading.Thread(target=handle_check_video_req, args=(dados,server_socket,addr,db)).start()
         except Exception as e:
             print(f"Erro svc_video_reqs: {e}")
             break
     server_socket.close()
+
+#! USA O MODELO DE UMA THREAD POR CADA INTERFACE    
+def svc_check_video2(db: Database_RP):
+    service_name = "svc_check_video"
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_CHECK_PORT}")
+    interfaces = get_ips()
+    threads = []
+    for itf in interfaces:
+        thr=threading.Thread(target=thread_for_each_interface, args=(itf, V_CHECK_PORT, handle_check_video_req, db))
+        thr.daemon = True
+        thr.start()
+        threads.append(thr)
+        
+    for t in threads:
+        t.join()
 
 #!#################################################################################################################
 #* SERVIÇO START_VIDEOS
@@ -128,7 +145,7 @@ def svc_start_video(db: Database_RP):
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_start_video_req, args=(dados,addr,server_socket,db)).start()
+            threading.Thread(target=handle_start_video_req, args=(dados,server_socket,addr,db)).start()
         except Exception as e:
             print(f"Erro svc_video_reqs: {e}")
             break
@@ -151,7 +168,7 @@ def svc_stop_video(db: Database_RP):
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_stop_video_req, args=(dados,addr,server_socket,db)).start()
+            threading.Thread(target=handle_stop_video_req, args=(dados,server_socket,addr,db)).start()
         except Exception as e:
             print(f"Erro svc_video_reqs: {e}")
             break
@@ -244,7 +261,7 @@ def handler_get_videos_from_server(server_ip: str, db: Database_RP):
     sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sckt.settimeout(6)
-        server = (server_ip,3000)
+        server = (server_ip,V_CHECK_PORT)
         msg = Mensagem(Mensagem.check_video).serialize()
         print(f"A enviar pedido de vídeos ao servidor {server}")
         sckt.sendto(msg, server)
@@ -290,7 +307,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
     sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sckt.settimeout(5)
-        server = (server_ip, 3010)
+        server = (server_ip, METRICS_PORT)
         for i in range(num_of_requests):
             msg = Mensagem(Mensagem.metrica).serialize()
             sckt.sendto(msg, server)
@@ -373,7 +390,7 @@ def main():
     # Inicia os serviços em threads separadas
     # svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
     
-    svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
+    svc1_thread = threading.Thread(target=svc_check_video2, args=(db,))
     svc2_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_start_video, args=(db,))
     # svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal

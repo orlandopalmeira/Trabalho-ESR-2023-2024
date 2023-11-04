@@ -12,6 +12,7 @@ import signal
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
 V_STOP_PORT = 3003 #> Porta de atendimento do serviço stop_videos
+METRICS_PORT = 3010 #> Porta de atendimento do serviço measure_metrics
 
 class ServerWorker:	
 
@@ -233,13 +234,15 @@ def main():
 
 	# Inicia os serviços em threads separadas
 	svc1_thread = threading.Thread(target=svc_check_video, args=(V_CHECK_PORT, db))
-	svc1_thread = threading.Thread(target=svc_start_video, args=(V_CHECK_PORT, db))
-	svc1_thread = threading.Thread(target=svc_stop_video, args=(V_CHECK_PORT, db))
-	svc2_thread = threading.Thread(target=svc_answer_metrics, args=(3010, db))
+	svc2_thread = threading.Thread(target=svc_start_video, args=(V_START_PORT, db))
+	svc3_thread = threading.Thread(target=svc_stop_video, args=(V_STOP_PORT, db))
+	svc4_thread = threading.Thread(target=svc_answer_metrics, args=(METRICS_PORT, db))
 
 	threads = [
 		svc1_thread, 
 		svc2_thread,
+		svc3_thread,
+		svc4_thread,
 	]
 
 	for t in threads:

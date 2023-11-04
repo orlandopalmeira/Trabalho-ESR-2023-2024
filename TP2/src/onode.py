@@ -100,6 +100,7 @@ def svc_show_vizinhos(db: Database):
 #* Serviço de CHECK_VIDEO
 def handle_check_video(data: bytes, pedinte: tuple, sckt, db: Database):
     msg = Mensagem.deserialize(data)
+    print(f"CHECK_VIDEO: from {pedinte[0]}, for video '{msg.get_dados()}'")
     tipo = msg.get_tipo()
     if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
         video = msg.get_dados()
