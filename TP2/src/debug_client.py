@@ -13,19 +13,23 @@ if __name__ == "__main__":
 
     # destination_ip = '10.0.4.10'
     destination_ip = sys.argv[1]
-    destination_port = int(sys.argv[2])
+    destination_port = 3000
+    if len(sys.argv) >= 3:
+        destination_port = int(sys.argv[2])
+
     addr = (destination_ip, destination_port)
     # client.connect(addr) # For TCP
 
-    my_ip = sys.argv[3]
+    # my_ip = sys.argv[3]
 
     message = "Olá, servidor"
-    message = Mensagem(Mensagem.video, dados="video.Mpjeg", origem=my_ip).serialize()
+    message = message.encode('utf-8')
+    # message = Mensagem(Mensagem.video, dados="video.Mpjeg").serialize()
     # client.send(message) # For TCP
     client.sendto(message, addr)
 
-    resposta, add = client.recvfrom(1024)
-    resposta = resposta.decode('utf-8')
-    print(f"Resposta do servidor: {resposta}")
+    # resposta, add = client.recvfrom(1024)
+    # resposta = resposta.decode('utf-8')
+    # print(f"Resposta do servidor: {resposta}")
 
     client.close()

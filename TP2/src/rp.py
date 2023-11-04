@@ -6,17 +6,49 @@ import time
 import datetime
 from database_rp import Database_RP
 from mensagem import Mensagem
+from test import get_ips
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
 def ctrlc_handler(sig, frame):
     print("A encerrar o servidor e as threads...")
     sys.exit(0)
 
+def thread_for_each_interface(endereço, porta, function, db: Database_RP):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind((endereço, porta))
+    # print(f"Serviço '{function.__name__}' pronto para receber conexões em {endereço}:{porta}.")
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=function, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro no handler {function.__name__} com o endereço {endereço}:{porta}")
+            print(e)
+            break
+    server_socket.close()
+
 #!#################################################################################################################
 #* CHECK_VIDEO and START_VIDEO treatments
 
+def svc_video_reqs(port:int, db: Database_RP):
+    service_name = "svc_check_video"
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+    interfaces = get_ips()
+    threads = []
+    for itf in interfaces:
+        thr=threading.Thread(target=thread_for_each_interface, args=(itf, port, handle_video_reqs, db))
+        thr.daemon = True
+        thr.start()
+        threads.append(thr)
+        
+    for t in threads:
+        t.join()
+
+
 def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
     print(f"Conversação estabelecida com {addr}")
+
+    print(f"Recebi pedido no socket com o endereço {str_sckt.getsockname()}")
 
     msg = Mensagem.deserialize(msg)
 
@@ -39,7 +71,9 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
 
         # Resposta ao pedido
         if db.servers_have_video(video):
-            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! TEM DE SE IMPLEMENTAR A RESPONSABILIDADE DO NODO RECETOR DE PREENCHER O CAMPO "ORIGEM"
+            #! Já é possivel determinar o endereço em que estamos, comentario seguinte 
+            origem = str_sckt.getsockname()[0] #! TESTAR ISTO
+            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem=origem)
             str_sckt.sendto(msg.serialize(), addr)
         else:
             print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
@@ -72,10 +106,8 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
         print(db.remove_streaming(video, addr))
 
 def relay_video(str_sckt, video, server: tuple, db: Database_RP):
-    print("Hello from relay_video")
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
-        print('len clients: ', len(clients))
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
             packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
@@ -87,23 +119,6 @@ def relay_video(str_sckt, video, server: tuple, db: Database_RP):
     str_sckt.sendto(stop_video_msg, server)
     str_sckt.close() 
     print(f"Streaming de '{video}' terminada")
-
-def svc_video_reqs(port:int, db: Database_RP):
-    service_name = "svc_check_video"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, port))
-    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_video_reqs, args=(dados, server_socket, addr, db)).start()
-        except Exception as e:
-            print(f"Erro svc_check_video: {e}")
-            break
-
-    server_socket.close()
 
 #!#################################################################################################################
 #* Solicitar a lista dos vídeos nos servidores
@@ -244,12 +259,12 @@ def main():
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
     svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
-    show_thread = threading.Thread(target=svc_show_db, args=(db,))
+    show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
         svc1_thread,
         svc2_thread, 
-        show_thread
+        # show_db_thread
         ]
 
     for t in threads:
