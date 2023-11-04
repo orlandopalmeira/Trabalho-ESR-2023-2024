@@ -6,7 +6,7 @@ import time
 import datetime
 from database_rp import Database_RP
 from mensagem import Mensagem
-from test import get_ips
+from utils import get_ips
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
 def ctrlc_handler(sig, frame):
