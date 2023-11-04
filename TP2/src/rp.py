@@ -291,18 +291,17 @@ def main():
     print("Vídeos recebidos dos servidores")
 
     # Inicia os serviços em threads separadas
-    # svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
-    
     svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
     svc2_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_start_video, args=(db,))
-    # svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
+    svc4_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
     # show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
         svc1_thread,
         svc2_thread, 
         svc3_thread,
+        svc4_thread,
         # show_db_thread
         ]
 
