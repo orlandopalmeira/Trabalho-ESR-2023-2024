@@ -36,7 +36,7 @@ def thread_for_each_interface(endereço, porta, function, db: Database_RP):
 #!#################################################################################################################
 #* SERVIÇO CHECK_VIDEOS
 
-def handle_check_video(msg, sckt, addr:tuple, db: Database_RP):
+def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     msg = Mensagem.deserialize(msg)
     tipo = msg.get_tipo()
     pedido_id = msg.get_id()
@@ -85,7 +85,7 @@ def svc_check_video(db: Database_RP):
 #!#################################################################################################################
 #* SERVIÇO START_VIDEOS
 
-def handle_start_video(msg, sckt, addr:tuple, db: Database_RP):
+def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     msg = Mensagem.deserialize(msg)
     video = msg.get_dados()
     if db.servers_have_video(video):
@@ -102,9 +102,9 @@ def handle_start_video(msg, sckt, addr:tuple, db: Database_RP):
             sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT))
             db.add_streaming(video, threading.Event(), addr)
             #! Cria-se aqui uma nova thread??
-            relay_video(sckt, video, (best_server, V_START_PORT), db)
+            relay_video(sckt, video, best_server, db)
 
-def relay_video(str_sckt, video, server: tuple, db: Database_RP):
+def relay_video(str_sckt, video, server: str, db: Database_RP):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
@@ -115,7 +115,7 @@ def relay_video(str_sckt, video, server: tuple, db: Database_RP):
             break # pára a stream
         
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
-    str_sckt.sendto(stop_video_msg, server)
+    str_sckt.sendto(stop_video_msg, (server, V_STOP_PORT))
     str_sckt.close() 
     print(f"Streaming de '{video}' terminada")
 
@@ -136,7 +136,8 @@ def svc_start_video(db: Database_RP):
 #!#################################################################################################################
 #* SERVIÇO STOP_VIDEOS
 
-def handle_stop_video(msg, sckt, addr:tuple, db: Database_RP):
+def handle_stop_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
+    msg = Mensagem.deserialize(msg)
     video = msg.get_dados()
     print(db.remove_streaming(video, addr))
 
@@ -146,7 +147,7 @@ def svc_stop_video(db: Database_RP):
     interfaces = get_ips()
     threads = []
     for ip in interfaces:
-        t = threading.Thread(target=thread_for_each_interface, args=(ip, V_STOP_PORT, handle_check_video, db))
+        t = threading.Thread(target=thread_for_each_interface, args=(ip, V_STOP_PORT, handle_stop_video, db))
         t.daemon = True
         t.start()
         threads.append(t)
