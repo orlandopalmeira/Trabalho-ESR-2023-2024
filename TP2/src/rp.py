@@ -70,31 +70,14 @@ def handle_check_video(msg, sckt, addr:tuple, db: Database_RP):
 
 def svc_check_video(db: Database_RP):
     service_name = "svc_check_video"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, V_CHECK_PORT))
-    print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_CHECK_PORT}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_check_video, args=(dados,server_socket,addr,db)).start()
-        except Exception as e:
-            print(f"Erro svc_video_reqs: {e}")
-            break
-    server_socket.close()
-
-#! USA O MODELO DE UMA THREAD POR CADA INTERFACE    
-def svc_check_video2(db: Database_RP):
-    service_name = "svc_check_video"
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_CHECK_PORT}")
     interfaces = get_ips()
     threads = []
-    for itf in interfaces:
-        thr=threading.Thread(target=thread_for_each_interface, args=(itf, V_CHECK_PORT, handle_check_video, db))
-        thr.daemon = True
-        thr.start()
-        threads.append(thr)
+    for ip in interfaces:
+        t = threading.Thread(target=thread_for_each_interface, args=(ip, V_CHECK_PORT, handle_check_video, db))
+        t.daemon = True
+        t.start()
+        threads.append(t)
         
     for t in threads:
         t.join()
@@ -138,19 +121,17 @@ def relay_video(str_sckt, video, server: tuple, db: Database_RP):
 
 def svc_start_video(db: Database_RP):
     service_name = "svc_start_video"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, V_START_PORT))
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_START_PORT}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_start_video, args=(dados,server_socket,addr,db)).start()
-        except Exception as e:
-            print(f"Erro svc_video_reqs: {e}")
-            break
-    server_socket.close()
+    interfaces = get_ips()
+    threads = []
+    for ip in interfaces:
+        t = threading.Thread(target=thread_for_each_interface, args=(ip, V_START_PORT, handle_start_video, db))
+        t.daemon = True
+        t.start()
+        threads.append(t)
+        
+    for t in threads:
+        t.join()
 
 #!#################################################################################################################
 #* SERVIÇO STOP_VIDEOS
@@ -161,97 +142,17 @@ def handle_stop_video(msg, sckt, addr:tuple, db: Database_RP):
 
 def svc_stop_video(db: Database_RP):
     service_name = "svc_stop_video"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, V_STOP_PORT))
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_STOP_PORT}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_stop_video, args=(dados,server_socket,addr,db)).start()
-        except Exception as e:
-            print(f"Erro svc_video_reqs: {e}")
-            break
-    server_socket.close()
-
-#!#################################################################################################################
-#! TEMPLATE DE TER UMA THREAD POR CADA INTERNAL ESTÁ AQUI
-#* CHECK_VIDEO and START_VIDEO treatments
-
-def svc_video_reqs(port:int, db: Database_RP):
-    service_name = "svc_check_video"
-    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
     interfaces = get_ips()
     threads = []
-    for itf in interfaces:
-        thr=threading.Thread(target=thread_for_each_interface, args=(itf, port, handle_video_reqs, db))
-        thr.daemon = True
-        thr.start()
-        threads.append(thr)
+    for ip in interfaces:
+        t = threading.Thread(target=thread_for_each_interface, args=(ip, V_STOP_PORT, handle_check_video, db))
+        t.daemon = True
+        t.start()
+        threads.append(t)
         
     for t in threads:
         t.join()
-
-def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database_RP):
-    print(f"Conversação estabelecida com {addr}")
-
-    print(f"Recebi pedido no socket com o endereço {str_sckt.getsockname()}")
-
-    msg = Mensagem.deserialize(msg)
-
-    tipo = msg.get_tipo()
-    pedido_id = msg.get_id()
-    cliente_origem = msg.get_origem()
-    from_node = addr[0]
-    video = msg.get_dados()
-
-    if tipo == Mensagem.check_video:
-        # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
-        if db.foi_respondido(pedido_id):
-            print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
-            return
-        
-        # Gestão de pedidos repetidos
-        db.add_route(cliente_origem, from_node)
-        print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
-        db.add_pedido_respondido(pedido_id)
-
-        # Resposta ao pedido
-        if db.servers_have_video(video):
-            #! Já é possivel determinar o endereço em que estamos, comentario seguinte 
-            origem = str_sckt.getsockname()[0] #! TESTAR ISTO
-            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem=origem)
-            str_sckt.sendto(msg.serialize(), addr)
-        else:
-            print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
-            pass # Ignora o pedido
-
-        print(f"CHECK_VIDEO: Conversação encerrada com {addr}")
-
-    elif tipo == Mensagem.start_video:
-        if db.servers_have_video(video):
-            print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
-            if db.is_streaming_video(video):
-                print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
-                db.add_streaming(video, threading.Event(), addr)
-                
-            else: # Vai buscar o vídeo ao melhor servidor
-                best_server = db.get_best_server(video)
-                start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE")
-                str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                str_sckt.settimeout(5)
-                str_sckt.sendto(start_video_msg.serialize(), (best_server, 3000))
-                db.add_streaming(video, threading.Event(), addr)
-                #! Cria-se aqui uma nova thread??
-                relay_video(str_sckt, video, (best_server, 3000), db)
-
-        else: 
-            print(f"START_VIDEO: O video {video} não existe na rede overlay.")
-            print(f"START_VIDEO: Pedido de {cliente_origem} ignorado!")
-    elif tipo == Mensagem.stop_video:
-        video = msg.get_dados()
-        print(db.remove_streaming(video, addr))
 
 #!#################################################################################################################
 #* Solicitar a lista dos vídeos nos servidores
@@ -391,7 +292,7 @@ def main():
     # Inicia os serviços em threads separadas
     # svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
     
-    svc1_thread = threading.Thread(target=svc_check_video2, args=(db,))
+    svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
     svc2_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_start_video, args=(db,))
     # svc2_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
