@@ -136,25 +136,26 @@ def handle_video_reqs(msg, str_sckt, addr:tuple, db: Database):
     video = msg.get_dados()
 
     if tipo == Mensagem.check_video:
-        # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
-        if db.foi_respondido(pedido_id):
-            print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
-            return
+        handle_check_video_req(msg.serialize(),addr,str_sckt,db) #! Isto é apenas para teste.
+        # # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
+        # if db.foi_respondido(pedido_id):
+        #     print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
+        #     return
         
-        # Gestão de pedidos repetidos
-        db.add_route(cliente_origem, from_node)
-        print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
-        db.add_pedido_respondido(pedido_id)
+        # # Gestão de pedidos repetidos
+        # db.add_route(cliente_origem, from_node)
+        # print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
+        # db.add_pedido_respondido(pedido_id)
 
-        # Resposta ao pedido
-        if db.servers_have_video(video):
-            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! TEM DE SE IMPLEMENTAR A RESPONSABILIDADE DO NODO RECETOR DE PREENCHER O CAMPO "ORIGEM"
-            str_sckt.sendto(msg.serialize(), addr)
-        else:
-            print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
-            pass # Ignora o pedido
+        # # Resposta ao pedido
+        # if db.servers_have_video(video):
+        #     msg = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! TEM DE SE IMPLEMENTAR A RESPONSABILIDADE DO NODO RECETOR DE PREENCHER O CAMPO "ORIGEM"
+        #     str_sckt.sendto(msg.serialize(), addr)
+        # else:
+        #     print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
+        #     pass # Ignora o pedido
 
-        print(f"CHECK_VIDEO: Conversação encerrada com {addr}")
+        # print(f"CHECK_VIDEO: Conversação encerrada com {addr}")
 
     elif tipo == Mensagem.start_video:
         if db.servers_have_video(video):
@@ -222,7 +223,7 @@ def handle_check_video_req(data: bytes, pedinte: tuple, sckt, db: Database):
     if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
         video = msg.get_dados()
         if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
-            response = Mensagem(Mensagem.resp_check_video, dados=True, origem="RESPONSABILIDADE") #! o próximo nodo tem de colocar o seu IP
+            response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #! isto do getsockname tem de ser testado
             sckt.sendto(response, pedinte)
         else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
             vizinhos = db.get_vizinhos_for_broadcast(pedinte[0])
@@ -232,7 +233,7 @@ def handle_check_video_req(data: bytes, pedinte: tuple, sckt, db: Database):
 
             # Check video aos vizinhos
             for vizinho in vizinhos:
-                vizinho = (vizinho,3003) #! serviço de check vídeo a ser atendido na porta 3003, ver melhor isto para não haver problemas de portas
+                vizinho = (vizinho,3000) #! serviço de check vídeo a ser atendido na porta 3003, ver melhor isto para não haver problemas de portas
                 vizinhos_socket.sendto(msg_para_vizinhos, vizinho) #> faz um check_video ao vizinho
                 
             # Recepção das respostas dos vizinhos
@@ -281,7 +282,7 @@ def main():
     svc1_thread = threading.Thread(target=svc_video_reqs, args=(3000, db))
     svc2_thread = threading.Thread(target=svc_add_vizinhos, args=(3001, db))
     svc3_thread = threading.Thread(target=svc_remove_vizinhos, args=(3002, db))
-    svc4_thread = threading.Thread(target=svc_check_video, args=(3003,db))
+    # svc4_thread = threading.Thread(target=svc_check_video, args=(3003,db))
     svc5_thread = threading.Thread(target=svc_attend_clients, args=(3004, db))
     svc6_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
 
@@ -289,7 +290,7 @@ def main():
         svc1_thread,
         svc2_thread,
         svc3_thread,
-        svc4_thread,
+        # svc4_thread,
         svc5_thread,
         svc6_thread
     ]
