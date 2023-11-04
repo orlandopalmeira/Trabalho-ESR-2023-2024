@@ -191,7 +191,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
                 str_sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT))
                 db.add_streaming(video, threading.Event(), addr)
                 #! Cria-se aqui uma nova thread??
-                relay_video(str_sckt, video, (best_server, V_START_PORT), db)
+                relay_video(str_sckt, video, best_server, db)
 
         else: 
             print(f"START_VIDEO: O video {video} não existe na rede overlay.")
@@ -199,7 +199,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER START_VIDEOS!!!!!\n\n")
 
-def relay_video(str_sckt, video, server: tuple, db: Database):
+def relay_video(str_sckt, video, server: str, db: Database):
     print("Hello from relay_video")
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
@@ -212,7 +212,7 @@ def relay_video(str_sckt, video, server: tuple, db: Database):
             break # pára a stream
         
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
-    str_sckt.sendto(stop_video_msg, server)
+    str_sckt.sendto(stop_video_msg, (server, V_STOP_PORT))
     str_sckt.close() 
     print(f"Streaming de '{video}' terminada")
 
