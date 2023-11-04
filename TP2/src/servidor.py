@@ -233,13 +233,15 @@ def main():
 
 	# Inicia os serviços em threads separadas
 	svc1_thread = threading.Thread(target=svc_check_video, args=(V_CHECK_PORT, db))
-	svc1_thread = threading.Thread(target=svc_start_video, args=(V_CHECK_PORT, db))
-	svc1_thread = threading.Thread(target=svc_stop_video, args=(V_CHECK_PORT, db))
-	svc2_thread = threading.Thread(target=svc_answer_metrics, args=(3010, db))
+	svc2_thread = threading.Thread(target=svc_start_video, args=(V_START_PORT, db))
+	svc3_thread = threading.Thread(target=svc_stop_video, args=(V_STOP_PORT, db))
+	svc10_thread = threading.Thread(target=svc_answer_metrics, args=(3010, db))
 
 	threads = [
 		svc1_thread, 
 		svc2_thread,
+		svc3_thread,
+		svc10_thread,
 	]
 
 	for t in threads:

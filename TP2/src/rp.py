@@ -244,7 +244,7 @@ def handler_get_videos_from_server(server_ip: str, db: Database_RP):
     sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sckt.settimeout(6)
-        server = (server_ip,3000)
+        server = (server_ip,V_CHECK_PORT)
         msg = Mensagem(Mensagem.check_video).serialize()
         print(f"A enviar pedido de vídeos ao servidor {server}")
         sckt.sendto(msg, server)
