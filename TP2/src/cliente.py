@@ -9,6 +9,10 @@ from database import Database
 from mensagem import Mensagem
 from utils import get_ips
 
+V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
+V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
+V_STOP_PORT = 3003 #> Porta de atendimento do serviço stop_videos
+
 if __name__ == "__main__":
 	root = Tk()
 
@@ -24,22 +28,21 @@ if __name__ == "__main__":
 	# self_ip = config["self_ip"] # versão antiga
 	self_ip = get_ips()[0] #> Obtém informação do seu próprio IP
 	dest_addr = config["vizinho"]
-	dest_port = 3000
 	video = sys.argv[2]
 
-	print(f"A enviar pedido apenas para o servidor {dest_addr}:{dest_port}")
+	print(f"A enviar pedido apenas para o servidor {dest_addr}:{V_CHECK_PORT}")
 	print(f"A pedir o video {video}")
 	
-	dest = (dest_addr, dest_port)
 	sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	# Se não receber resposta em 5 segundos, assume que a rede overlay não tem o vídeo
 	sckt.settimeout(5)
 
 
 	#* Verificação da existencia do video
+	dest_check = (dest_addr, V_CHECK_PORT)
 	msg = Mensagem(Mensagem.check_video, dados=video, origem=self_ip)
 	msg = msg.serialize()
-	sckt.sendto(msg, dest)
+	sckt.sendto(msg, dest_check)
 	try:
 		msg, addr = sckt.recvfrom(1024)
 	except socket.timeout:
@@ -51,9 +54,11 @@ if __name__ == "__main__":
 	print("Reposta a CHECK_VIDEO:")
 	print(msg)
 
+	#* Iniciar o vídeo
+	dest_start = (dest_addr, V_START_PORT)
 	msg = Mensagem(Mensagem.start_video, dados=video, origem=self_ip)
 	msg = msg.serialize()
-	sckt.sendto(msg, dest)
+	sckt.sendto(msg, dest_start)
 	try:
 		#! Verificar timeouts e assim la dentro do clienteGUI
 		# Create a new client
@@ -64,5 +69,5 @@ if __name__ == "__main__":
 	finally:
 		print("A terminar vídeo...")
 		stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
-		sckt.sendto(stop_video_msg, dest)
+		sckt.sendto(stop_video_msg, dest_check)
 	
