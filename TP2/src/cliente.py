@@ -29,6 +29,9 @@ if __name__ == "__main__":
 	self_ip = get_ips()[0] #> Obtém informação do seu próprio IP
 	dest_addr = config["vizinho"]
 	video = sys.argv[2]
+	dest_check = (dest_addr, V_CHECK_PORT)
+	dest_start = (dest_addr, V_START_PORT)
+	dest_stop = (dest_addr, V_STOP_PORT)
 
 	print(f"A enviar pedido apenas para o servidor {dest_addr}:{V_CHECK_PORT}")
 	print(f"A pedir o video {video}")
@@ -39,7 +42,6 @@ if __name__ == "__main__":
 
 
 	#* Verificação da existencia do video
-	dest_check = (dest_addr, V_CHECK_PORT)
 	msg = Mensagem(Mensagem.check_video, dados=video, origem=self_ip)
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_check)
@@ -55,7 +57,6 @@ if __name__ == "__main__":
 	print(msg)
 
 	#* Iniciar o vídeo
-	dest_start = (dest_addr, V_START_PORT)
 	msg = Mensagem(Mensagem.start_video, dados=video, origem=self_ip)
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_start)
@@ -69,5 +70,5 @@ if __name__ == "__main__":
 	finally:
 		print("A terminar vídeo...")
 		stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
-		sckt.sendto(stop_video_msg, dest_check)
+		sckt.sendto(stop_video_msg, dest_stop)
 	
