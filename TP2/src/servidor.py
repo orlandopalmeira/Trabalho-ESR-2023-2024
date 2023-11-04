@@ -5,11 +5,13 @@ sys.path.append("./Python")
 from VideoStream import VideoStream
 from RtpPacket import RtpPacket
 
-
-#from database import Database
 from database_server import Database_Server
 from mensagem import Mensagem
 import signal
+
+V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
+V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
+V_STOP_PORT = 3003 #> Porta de atendimento do serviço stop_videos
 
 class ServerWorker:	
 
@@ -86,8 +88,9 @@ def ctrlc_handler(sig, frame):
     sys.exit(0)
 
 #################################################################################################################
-def svc_answer_requests(port:int, db: Database_Server):
-	service_name = "svc_answer_requests"
+#* Serviço de CHECK_VIDEO que responde com os videos que tem
+def svc_check_video(port:int, db: Database_Server):
+	service_name = "svc_check_video"
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	endereco = "" # Listen on all interfaces
 	server_socket.bind((endereco, port))
@@ -96,12 +99,43 @@ def svc_answer_requests(port:int, db: Database_Server):
 	while True:
 		try:
 			dados, addr = server_socket.recvfrom(1024)
-			threading.Thread(target=handle_answer_requests, args=(dados, server_socket, addr, db)).start()
+			threading.Thread(target=handle_check_video, args=(dados, server_socket, addr, db)).start()
 		except Exception as e:
 			print(f"Erro svc_answer_requests: {e}")
 			break
 
-def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
+def handle_check_video(dados, socket, addr:tuple, db: Database_Server):
+	msg = Mensagem.deserialize(dados)
+	print(f"Conversação estabelecida com {addr}")
+	# print(msg)
+
+	if msg.get_tipo() == Mensagem.check_video:
+		videos = db.get_videos()
+		msg = Mensagem(Mensagem.resp_check_video, dados=videos).serialize()
+		socket.sendto(msg, addr)
+		print(f"Check_video respondido com os videos {videos} para {addr}")
+
+	else:
+		print("Foi recebido uma mensagem desconhecida!!")
+
+#################################################################################################################
+#* Serviço de START_VIDEO que inicia o envio de um video
+def svc_start_video(port:int, db: Database_Server):
+	service_name = "svc_start_video"
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	endereco = "" # Listen on all interfaces
+	server_socket.bind((endereco, port))
+	print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+	while True:
+		try:
+			dados, addr = server_socket.recvfrom(1024)
+			threading.Thread(target=handle_start_video, args=(dados, server_socket, addr, db)).start()
+		except Exception as e:
+			print(f"Erro svc_start_video: {e}")
+			break
+
+def handle_start_video(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
 	print(f"Conversação estabelecida com {addr}")
 	print(msg)
@@ -124,22 +158,40 @@ def handle_answer_requests(dados, socket, addr:tuple, db: Database_Server):
 		else:
 			raise Exception(f"Já iniciei o vídeo '{video}'")
 
-	elif msg.get_tipo() == Mensagem.stop_video:
+	else:
+		print("Foi recebido uma mensagem desconhecida!!")
+
+#################################################################################################################
+#* Serviço de STOP_VIDEO que para o envio de um video
+def svc_stop_video(port:int, db: Database_Server):
+	service_name = "svc_stop_video"
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	endereco = "" # Listen on all interfaces
+	server_socket.bind((endereco, port))
+	print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+	while True:
+		try:
+			dados, addr = server_socket.recvfrom(1024)
+			threading.Thread(target=handle_stop_video, args=(dados, server_socket, addr, db)).start()
+		except Exception as e:
+			print(f"Erro svc_stop_video: {e}")
+			break
+
+def handle_stop_video(dados, socket, addr:tuple, db: Database_Server):
+	msg = Mensagem.deserialize(dados)
+	print(f"Conversação estabelecida com {addr}")
+	# print(msg)
+
+	if msg.get_tipo() == Mensagem.stop_video:
 		video = msg.get_dados()
 		db.remove_stream(video) # termina o worker que trata de enviar o vídeo e remove-o da base de dados
 
-	elif msg.get_tipo() == Mensagem.check_video:
-		videos = db.get_videos()
-		msg = Mensagem(Mensagem.resp_check_video, dados=videos).serialize()
-		socket.sendto(msg, addr)
-		print(f"Check_video respondido com os videos {videos} para {addr}")
-
 	else:
 		print("Foi recebido uma mensagem desconhecida!!")
-		
-#################################################################################################################
-#! WIP - CHECKING
 
+#################################################################################################################
+#* Serviço de MÉTRICA que responde com aos pacotes do RP com um TIMESTAMP
 def svc_answer_metrics(port:int, db: Database_Server):
 	service_name = "svc_answer_metrics"
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -160,32 +212,35 @@ def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
 	print(f"Conversação estabelecida com {addr}")
 
 	if msg.get_tipo() == Mensagem.metrica:
-		#! Talvez atualizar aqui o campo origem da mensagem para efeitos de routing futuros
 		msg.update_timestamp()
 		socket.sendto(msg.serialize(), addr)
 		print(f"Métrica de {addr}, respondida.")
 	else:
-		print("Foi recebido uma mensagem desconhecida!!")
-
+		print("Foi recebido uma mensagem no serviço de Métrica, cuja mensagem não é do tipo MÉTRICA!!")
 
 
 #################################################################################################################
 
 def main():
 
+	# Regista o sinal para encerrar o servidor no momento do CTRL+C
+	signal.signal(signal.SIGINT, ctrlc_handler)
+
+
 	db = Database_Server()
 
 	db.read_config_file(sys.argv[1])
 
-
-	# Regista o sinal para encerrar o servidor no momento do CTRL+C
-	signal.signal(signal.SIGINT, ctrlc_handler)
-
 	# Inicia os serviços em threads separadas
-	svc1_thread = threading.Thread(target=svc_answer_requests, args=(3000, db))
+	svc1_thread = threading.Thread(target=svc_check_video, args=(V_CHECK_PORT, db))
+	svc1_thread = threading.Thread(target=svc_start_video, args=(V_CHECK_PORT, db))
+	svc1_thread = threading.Thread(target=svc_stop_video, args=(V_CHECK_PORT, db))
 	svc2_thread = threading.Thread(target=svc_answer_metrics, args=(3010, db))
 
-	threads = [svc1_thread, svc2_thread]
+	threads = [
+		svc1_thread, 
+		svc2_thread,
+	]
 
 	for t in threads:
 		t.daemon = True
@@ -198,9 +253,5 @@ def main():
 
 
 if __name__ == '__main__':
-	# dest_addr = "10.0.0.20"
-	# dest_port = 25000
-	# video = "movie.Mjpeg"
-	# (Servidor()).main(dest_addr, dest_port, video)
 	
 	main()
