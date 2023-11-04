@@ -7,6 +7,7 @@ from ClienteGUI import ClienteGUI
 
 from database import Database
 from mensagem import Mensagem
+from utils import get_ips
 
 if __name__ == "__main__":
 	root = Tk()
@@ -20,7 +21,8 @@ if __name__ == "__main__":
 
 	#* Configuração do cliente 
 	#! Talvez meter type check nisto para ver se é string e tal, pq me deu trabalho de identificar que estava aqui um problema
-	self_ip = config["self_ip"]
+	# self_ip = config["self_ip"] # versão antiga
+	self_ip = get_ips()[0] #> Obtém informação do seu próprio IP
 	dest_addr = config["vizinho"]
 	dest_port = 3000
 	video = sys.argv[2]
