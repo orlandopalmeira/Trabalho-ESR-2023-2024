@@ -5,16 +5,30 @@ import sys
 import time
 from database import Database
 from mensagem import Mensagem
+from utils import get_ips
 
 V_CHECK_PORT = 3001
 V_START_PORT = 3002
 V_STOP_PORT = 3003
 
-
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
 def ctrlc_handler(sig, frame):
     print("A encerrar o servidor e as threads...")
     sys.exit(0)
+
+def thread_for_each_interface(endereço, porta, function, db: Database):
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind((endereço, porta))
+    # print(f"Serviço '{function.__name__}' pronto para receber conexões em {endereço}:{porta}.")
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=function, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro no handler {function.__name__} com o endereço {endereço}:{porta}")
+            print(e)
+            break
+    server_socket.close()
 
 #!#################################################################################################################
 #? Serviço extra ainda inutilizado
@@ -98,7 +112,7 @@ def svc_show_vizinhos(db: Database):
 
 #!#################################################################################################################
 #* Serviço de CHECK_VIDEO
-def handle_check_video(data: bytes, pedinte: tuple, sckt, db: Database):
+def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
     msg = Mensagem.deserialize(data)
     print(f"CHECK_VIDEO: from {pedinte[0]}, for video '{msg.get_dados()}'")
     tipo = msg.get_tipo()
@@ -133,25 +147,23 @@ def handle_check_video(data: bytes, pedinte: tuple, sckt, db: Database):
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER CHECK_VIDEOS!!!!!\n\n")
 
-def svc_check_video(port:int, db: Database):
+def svc_check_video(db: Database):
     service_name = "svc_check_video"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, port))
-    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_check_video, args=(dados,addr,server_socket,db)).start()
-        except Exception as e:
-            print(f"Erro svc_check_video: {e}")
-            break
-    server_socket.close()
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_CHECK_PORT}")
+    interfaces = get_ips()
+    threads = []
+    for itf in interfaces:
+        thr=threading.Thread(target=thread_for_each_interface, args=(itf, V_CHECK_PORT, handle_check_video, db))
+        thr.daemon = True
+        thr.start()
+        threads.append(thr)
+        
+    for t in threads:
+        t.join()
 
 #!#################################################################################################################
-
 #* Serviço de START_VIDEO
+#! AINDA NÃO FUNCIONA
 
 def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     print(f"Conversação estabelecida com {addr}")
@@ -204,23 +216,19 @@ def relay_video(str_sckt, video, server: tuple, db: Database):
     str_sckt.close() 
     print(f"Streaming de '{video}' terminada")
 
-def svc_start_video(port:int, db: Database):
-    service_name = "svc_video_reqs"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, port))
-    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_start_video, args=(dados, server_socket, addr, db)).start()
-        except Exception as e:
-            print(f"Erro svc_start_video: {e}")
-            break
-
-    server_socket.close()
-
+def svc_start_video(db: Database):
+    service_name = "svc_start_video"
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_START_PORT}")
+    interfaces = get_ips()
+    threads = []
+    for itf in interfaces:
+        thr=threading.Thread(target=thread_for_each_interface, args=(itf, V_START_PORT, handle_start_video, db))
+        thr.daemon = True
+        thr.start()
+        threads.append(thr)
+        
+    for t in threads:
+        t.join()
 #!#################################################################################################################
 
 #* Serviço de STOP_VIDEO
@@ -242,24 +250,19 @@ def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER STOP_VIDEOS!!!!!\n\n")
 
-def svc_stop_video(port:int, db: Database):
+def svc_stop_video(db: Database):
     service_name = "svc_stop_video"
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    endereco = '0.0.0.0' # Listen on all interfaces
-    server_socket.bind((endereco, port))
-    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
-
-    while True:
-        try:
-            dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_stop_video, args=(dados, server_socket, addr, db)).start()
-        except Exception as e:
-            print(f"Erro svc_stop_video: {e}")
-            break
-
-    server_socket.close()
-
-
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {V_STOP_PORT}")
+    interfaces = get_ips()
+    threads = []
+    for itf in interfaces:
+        thr=threading.Thread(target=thread_for_each_interface, args=(itf, V_STOP_PORT, handle_stop_video, db))
+        thr.daemon = True
+        thr.start()
+        threads.append(thr)
+        
+    for t in threads:
+        t.join()
 
 def main():
 
@@ -274,9 +277,9 @@ def main():
     db.read_config_file(sys.argv[1])
 
     # Inicia os serviços em threads separadas
-    svc1_thread = threading.Thread(target=svc_check_video, args=(V_CHECK_PORT,db))
-    svc2_thread = threading.Thread(target=svc_start_video, args=(V_START_PORT, db))
-    svc3_thread = threading.Thread(target=svc_stop_video, args=(V_STOP_PORT, db))
+    svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
+    svc2_thread = threading.Thread(target=svc_start_video, args=(db,))
+    svc3_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc51_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
 
     threads=[   
