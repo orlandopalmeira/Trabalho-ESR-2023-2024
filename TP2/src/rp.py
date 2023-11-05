@@ -90,14 +90,13 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     print(f"START_VIDEO: Conversação estabelecida com {addr[0]}")
     msg = Mensagem.deserialize(msg)
 
-     #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
     video = msg.get_dados()['video'] #> Nome do vídeo que o remetente pretende ver 
 
     if db.servers_have_video(video): #> O RP verifica a existência do vídeo na overlay
         print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
         if db.is_streaming_video(video): #> O RP verifica se o vídeo já está a ser transmitido
             print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
-            db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
+            db.add_streaming(video, addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
             
         else: #> Ainda não está a receber o vídeo
             best_server = db.get_best_server(video) #> Vai buscar o vídeo ao melhor servidor
@@ -106,7 +105,7 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
             sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> Socket para comunicar com o servidor
             sckt.settimeout(5)
             sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT)) #> Envia a mensagem de soliticação do vídeo para o servidor
-            db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
+            db.add_streaming(video, addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
             #! Cria-se aqui uma nova thread??
             print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
             relay_video(sckt, video, best_server, db) #> Inicia o envio do vídeo para os clientes/nodos
@@ -146,7 +145,7 @@ def svc_start_video(db: Database_RP):
 def handle_stop_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     msg = Mensagem.deserialize(msg)
     video = msg.get_dados()
-    print(db.remove_streaming(video, addr))
+    db.remove_streaming(video, addr)
 
 def svc_stop_video(db: Database_RP):
     service_name = "svc_stop_video"

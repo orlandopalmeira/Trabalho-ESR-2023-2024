@@ -186,7 +186,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     if tipo == Mensagem.start_video:
         if db.is_streaming_video(video):#> Já está a transmitir o vídeo
             print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
-            db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo que está a receber o vídeo
+            db.add_streaming(video, addr) #> Regista o cliente/nodo que está a receber o vídeo
             
         else:#> Ainda não está a transmitir o vídeo
             print(f"START_VIDEO: O vídeo {video} ainda não está a ser transmitido")
@@ -196,7 +196,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
             str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             str_sckt.settimeout(5)
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
-            db.add_streaming(video, Queue(), addr) #! Ter atenção que pode haver um curto espaço temporal em que é dito que há streaming de um determinado vídeo mas ainda não ter começado (mt improvavel, mas...)
+            db.add_streaming(video, addr) #! Ter atenção que pode haver um curto espaço temporal em que é dito que há streaming de um determinado vídeo mas ainda não ter começado (mt improvavel, mas...)
             #! Cria-se aqui uma nova thread??
             print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
             relay_video(str_sckt, video, destino_vizinho, db)
@@ -249,7 +249,7 @@ def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
 
     if tipo == Mensagem.stop_video:
         print(f"STOP_VIDEO: Parei de transmitir o vídeo {video} para {addr[0]} ")
-        print(db.remove_streaming(video, addr))
+        db.remove_streaming(video, addr)
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER STOP_VIDEOS!!!!!\n\n")
 
