@@ -6,6 +6,7 @@ import time
 from database import Database
 from mensagem import Mensagem
 from utils import get_ips
+from queue import Queue
 
 V_CHECK_PORT = 3001
 V_START_PORT = 3002
@@ -113,30 +114,35 @@ def svc_show_vizinhos(db: Database):
 #!#################################################################################################################
 #* Serviço de CHECK_VIDEO
 def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
+    print(f"CHECK_VIDEO: Conversação estabelecida com {pedinte[0]}")
     msg = Mensagem.deserialize(data)
-    print(f"CHECK_VIDEO: from {pedinte[0]}, for video '{msg.get_dados()}'")
+    db.add_route(msg.get_origem(), pedinte[0]) #! (NÃO TESTADO) Povoamento da routing table com o endereço de origem mencionado na mensagem
     tipo = msg.get_tipo()
     if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
+        print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{msg.get_dados()}'")
         video = msg.get_dados()
         if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
-            response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #! isto do getsockname tem de ser testado
-            sckt.sendto(response, pedinte)
+            print(f"CHECK_VIDEO: tenho o vídeo {video}")
+            response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
+            sckt.sendto(response.serialize(), pedinte) #> envia a resposta
         else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
-            vizinhos = db.get_vizinhos_for_broadcast(pedinte[0])
+            print(f"CHECK_VIDEO: não tenho o vídeo '{video}' => broadcast para os meus vizinhos") 
+            vizinhos = db.get_vizinhos_for_broadcast(pedinte[0]) #> lista de vizinhos (excepto o remetente) onde ele vai efectuar um pedido de check video para descobrir onde está o vídeo
             msg_para_vizinhos = msg.serialize() #> para pedir o check video aos vizinhos (reaproveita a mensagem do cliente para manter o ID)
             vizinhos_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> este socket serve apenas para ele perguntar aos vizinhos se eles têm o vídeo 
             vizinhos_socket.settimeout(5) #> Se o vizinho não encontrar o vídeo ele não responde, pelo que temos de definir um tempo máximo de espera. Se ultrapassar esse tempo, assumimos que o vizinho não encontrou nada.
 
             # Check video aos vizinhos
             for vizinho in vizinhos:
-                vizinho = (vizinho,V_CHECK_PORT) #! serviço de check vídeo a ser atendido na porta 3003, ver melhor isto para não haver problemas de portas
+                vizinho = (vizinho,V_CHECK_PORT)
                 vizinhos_socket.sendto(msg_para_vizinhos, vizinho) #> faz um check_video ao vizinho
             
             # Recepção das respostas dos vizinhos
             for vizinho in vizinhos: #> verifica respostas dos vizinhos até encontrar uma que indique alguém que tenha o vídeo
                 try:
-                    resp_vizinho, _ = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
+                    resp_vizinho, addr_vizinho = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
                     resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
+                    db.add_route(resp_vizinho.get_origem(),addr_vizinho[0]) #! (NÃO TESTADO) Povoamento da routing table com o endereço de origem mencionado na mensagem
                     if resp_vizinho.get_dados(): #> o vizinho tem o vídeo
                         sckt.sendto(resp_vizinho.serialize(), pedinte) #> envia a resposta do vizinho com as informações necessárias
                         break #> termina a recepção de mensagens porque já encontrou quem tem o vídeo
@@ -166,7 +172,7 @@ def svc_check_video(db: Database):
 #! AINDA NÃO FUNCIONA
 
 def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
-    print(f"Conversação estabelecida com {addr}")
+    print(f"START_VIDEO: Conversação estabelecida com {addr[0]}")
 
     msg = Mensagem.deserialize(msg)
 
@@ -174,28 +180,25 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     pedido_id = msg.get_id()
     cliente_origem = msg.get_origem()
     from_node = addr[0]
-    video = msg.get_dados()
+    video = msg.get_dados()['video']  #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
 
     if tipo == Mensagem.start_video:
-        if db.servers_have_video(video):
-            print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
-            if db.is_streaming_video(video):
-                print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
-                db.add_streaming(video, threading.Event(), addr)
-                
-            else: # Vai buscar o vídeo ao melhor servidor
-                best_server = db.get_best_server(video)
-                start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE")
-                str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                str_sckt.settimeout(5)
-                str_sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT))
-                db.add_streaming(video, threading.Event(), addr)
-                #! Cria-se aqui uma nova thread??
-                relay_video(str_sckt, video, best_server, db)
+        if db.is_streaming_video(video):#> Já está a transmitir o vídeo
+            print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
+            db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo que está a receber o vídeo
+            
+        else:#> Ainda não está a transmitir o vídeo
+            print(f"START_VIDEO: O vídeo {video} ainda não está a ser transmitido")
+            destino = db.get_routing_table()[msg.get_dados()['destino']] #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
+            start_video_msg = Mensagem(Mensagem.start_video, dados=msg.get_dados(), origem="RESPONSABILIDADE")  #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
+            str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            str_sckt.settimeout(5)
+            str_sckt.sendto(start_video_msg.serialize(), (destino, V_START_PORT))
+            db.add_streaming(video, Queue(), addr)
+            #! Cria-se aqui uma nova thread??
+            print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
+            relay_video(str_sckt, video, destino, db)
 
-        else: 
-            print(f"START_VIDEO: O video {video} não existe na rede overlay.")
-            print(f"START_VIDEO: Pedido de {cliente_origem} ignorado!")
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER START_VIDEOS!!!!!\n\n")
 
@@ -203,7 +206,6 @@ def relay_video(str_sckt, video, server: str, db: Database):
     print("Hello from relay_video")
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
-        print('len clients: ', len(clients))
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
             packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
@@ -214,7 +216,7 @@ def relay_video(str_sckt, video, server: str, db: Database):
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
     str_sckt.sendto(stop_video_msg, (server, V_STOP_PORT))
     str_sckt.close() 
-    print(f"Streaming de '{video}' terminada")
+    print(f"START_VIDEO: Streaming de '{video}' terminada")
 
 def svc_start_video(db: Database):
     service_name = "svc_start_video"
@@ -235,8 +237,7 @@ def svc_start_video(db: Database):
 #! - CHECKAR COMPORTAMENTO
 
 def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
-    print(f"Conversação estabelecida com {addr}")
-
+    print(f"STOP_VIDEO: Conversação estabelecida com {addr[0]}")
     msg = Mensagem.deserialize(msg)
 
     tipo = msg.get_tipo()
@@ -246,6 +247,7 @@ def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
     video = msg.get_dados()
 
     if tipo == Mensagem.stop_video:
+        print(f"STOP_VIDEO: Parei de transmitir o vídeo {video} para {addr[0]} ")
         print(db.remove_streaming(video, addr))
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER STOP_VIDEOS!!!!!\n\n")

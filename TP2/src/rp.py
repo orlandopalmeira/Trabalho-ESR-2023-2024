@@ -7,7 +7,7 @@ import datetime
 from database_rp import Database_RP
 from mensagem import Mensagem
 from utils import get_ips
-
+from queue import Queue
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
@@ -37,6 +37,7 @@ def thread_for_each_interface(endereço, porta, function, db: Database_RP):
 #* SERVIÇO CHECK_VIDEOS
 
 def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
+    print(f"CHECK_VIDEO: Conversação estabelecida com {addr[0]}")
     msg = Mensagem.deserialize(msg)
     tipo = msg.get_tipo()
     pedido_id = msg.get_id()
@@ -45,6 +46,7 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     video = msg.get_dados()
 
     if tipo == Mensagem.check_video:
+        print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}'")
         # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
         if db.foi_respondido(pedido_id):
             print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
@@ -57,9 +59,9 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
 
         # Resposta ao pedido
         if db.servers_have_video(video):
+            print(f"CHECK_VIDEO: tenho o vídeo {video}")
             #! Já é possivel determinar o endereço em que estamos, comentario seguinte 
             origem = sckt.getsockname()[0] #! TESTAR ISTO
-            print(f'ORIGEM: {sckt.getsockname()[0]}')
             msg = Mensagem(Mensagem.resp_check_video, dados=True, origem=origem)
             sckt.sendto(msg.serialize(), addr)
         else:
@@ -86,23 +88,29 @@ def svc_check_video(db: Database_RP):
 #* SERVIÇO START_VIDEOS
 
 def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
+    print(f"START_VIDEO: Conversação estabelecida com {addr[0]}")
     msg = Mensagem.deserialize(msg)
-    video = msg.get_dados()
-    if db.servers_have_video(video):
+
+     #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
+    video = msg.get_dados()['video'] #> Nome do vídeo que o remetente pretende ver 
+
+    if db.servers_have_video(video): #> O RP verifica a existência do vídeo na overlay
         print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
-        if db.is_streaming_video(video):
+        if db.is_streaming_video(video): #> O RP verifica se o vídeo já está a ser transmitido
             print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
-            db.add_streaming(video, threading.Event(), addr)
+            db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
             
-        else: # Vai buscar o vídeo ao melhor servidor
-            best_server = db.get_best_server(video)
-            start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE")
-            sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        else: #> Ainda não está a emitir o vídeo
+            best_server = db.get_best_server(video) #> Vai buscar o vídeo ao melhor servidor
+            print(f"START_VIDEO: não estou a transmitir o vídeo '{video}' => solicitação ao servidor {best_server}")
+            start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE") #> Mensagem de soliticação do vídeo ao servidor
+            sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> Socket para comunicar com o servidor
             sckt.settimeout(5)
-            sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT))
-            db.add_streaming(video, threading.Event(), addr)
+            sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT)) #> Envia a mensagem de soliticação do vídeo para o servidor
+            db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
             #! Cria-se aqui uma nova thread??
-            relay_video(sckt, video, best_server, db)
+            print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
+            relay_video(sckt, video, best_server, db) #> Inicia o envio do vídeo para os clientes/nodos
 
 def relay_video(str_sckt, video, server: str, db: Database_RP):
     while True:
@@ -303,7 +311,7 @@ def main():
         svc3_thread,
         svc4_thread,
         # show_db_thread
-        ]
+    ]
 
     for t in threads:
         t.daemon = True

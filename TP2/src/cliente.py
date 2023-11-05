@@ -52,12 +52,13 @@ if __name__ == "__main__":
 		print("Assumido que o vídeo não existe na rede overlay")
 		print("A sair...")
 		sys.exit(1)
-	msg = Mensagem.deserialize(msg)
-	print("Reposta a CHECK_VIDEO:")
+	msg = Mensagem.deserialize(msg) #> Nesta mensagem contém o ip do nodo/rp que possui o vídeo no campo 'origem'
+	print("Resposta a CHECK_VIDEO:")
 	print(msg)
 
 	#* Iniciar o vídeo
-	msg = Mensagem(Mensagem.start_video, dados=video, origem=self_ip)
+	msg = Mensagem(Mensagem.start_video, dados={'destino': msg.get_origem(), 'video': video}, origem=self_ip) #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
+	print(f"Pedido de vídeo: {msg}")
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_start)
 	try:
