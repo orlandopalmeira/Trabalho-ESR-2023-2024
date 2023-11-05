@@ -94,6 +94,10 @@ class Database:
             except KeyError:
                 return "Rota não existia"
             
+    def resolve_ip_to_vizinho(self, ip_destino:str):
+        with self.routingTableLock:
+            return self.routingTable[ip_destino] #! TALVEZ Especificar melhor o que acontece quando n é encontrado o ip destino
+            
     def get_routing_table(self):
         with self.routingTableLock:
             return self.routingTable.copy()

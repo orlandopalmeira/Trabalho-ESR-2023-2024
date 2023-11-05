@@ -60,8 +60,7 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
         # Resposta ao pedido
         if db.servers_have_video(video):
             print(f"CHECK_VIDEO: tenho o vídeo {video}")
-            #! Já é possivel determinar o endereço em que estamos, comentario seguinte 
-            origem = sckt.getsockname()[0] #! TESTAR ISTO
+            origem = sckt.getsockname()[0]
             msg = Mensagem(Mensagem.resp_check_video, dados=True, origem=origem)
             sckt.sendto(msg.serialize(), addr)
         else:
@@ -100,10 +99,10 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
             print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
             db.add_streaming(video, Queue(), addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
             
-        else: #> Ainda não está a emitir o vídeo
+        else: #> Ainda não está a receber o vídeo
             best_server = db.get_best_server(video) #> Vai buscar o vídeo ao melhor servidor
             print(f"START_VIDEO: não estou a transmitir o vídeo '{video}' => solicitação ao servidor {best_server}")
-            start_video_msg = Mensagem(Mensagem.start_video, dados=video, origem="RESPONSABILIDADE") #> Mensagem de soliticação do vídeo ao servidor
+            start_video_msg = Mensagem(Mensagem.start_video, dados=video) #> Mensagem de soliticação do vídeo ao servidor
             sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> Socket para comunicar com o servidor
             sckt.settimeout(5)
             sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT)) #> Envia a mensagem de soliticação do vídeo para o servidor
