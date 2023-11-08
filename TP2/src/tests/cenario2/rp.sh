@@ -2,7 +2,7 @@
 
 # formato: ./rp.sh <ficheiro_config>
 
-config="./config/rp.json"
+config="./config/cenario2/rp.json"
 
 if [ $# -eq 1 ]; then
     config=$1

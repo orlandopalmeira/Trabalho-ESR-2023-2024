@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# formato: ./o5.sh <ficheiro_config>
+# formato: ./o2.sh <ficheiro_config>
 
-config="./config/o5.json"
+config="./config/cenario2/o2.json"
 
 if [ $# -eq 1 ]; then
     config=$1

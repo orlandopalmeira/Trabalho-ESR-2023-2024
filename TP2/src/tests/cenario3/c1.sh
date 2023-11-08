@@ -1,7 +1,7 @@
 #!/bin/bash
 # formato: ./c1.sh <video> (<video> opcional)
 
-config="./config/c1.json"
+config="./config/cenario3/c1.json"
 video="movie.Mjpeg"
 
 if [ $# -eq 1 ]; then

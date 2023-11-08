@@ -2,7 +2,7 @@ node n1 {
     type router
     model router
     network-config {
-	hostname n1
+	hostname RP
 	!
 	interface eth2
 	 ip address 10.0.2.1/24
@@ -16,7 +16,7 @@ node n1 {
     }
     canvas c1
     iconcoords {461.0 314.0}
-    labelcoords {461.0 346.0}
+    labelcoords {465.0 364.6666666666667}
     interface-peer {eth0 n7}
     interface-peer {eth1 n5}
     interface-peer {eth2 n6}
@@ -26,7 +26,7 @@ node n2 {
     type router
     model host
     network-config {
-	hostname n2
+	hostname S1
 	!
 	interface eth0
 	 ip address 10.0.0.10/24
@@ -34,7 +34,7 @@ node n2 {
     }
     canvas c1
     iconcoords {748.0 315.0}
-    labelcoords {748.0 347.0}
+    labelcoords {750.6666666666666 361.6666666666667}
     interface-peer {eth0 n7}
 }
 
@@ -42,7 +42,7 @@ node n3 {
     type router
     model PC
     network-config {
-	hostname n3
+	hostname C1
 	!
 	interface eth0
 	 ip address 10.0.1.20/24
@@ -50,7 +50,7 @@ node n3 {
     }
     canvas c1
     iconcoords {122.0 218.0}
-    labelcoords {122.0 250.0}
+    labelcoords {120.66666666666667 268.6666666666667}
     interface-peer {eth0 n5}
 }
 
@@ -58,7 +58,7 @@ node n4 {
     type router
     model PC
     network-config {
-	hostname n4
+	hostname C2
 	!
 	interface eth0
 	 ip address 10.0.2.20/24
@@ -66,7 +66,7 @@ node n4 {
     }
     canvas c1
     iconcoords {122.0 409.0}
-    labelcoords {122.0 441.0}
+    labelcoords {124.66666666666667 470.3333333333333}
     interface-peer {eth0 n6}
 }
 
@@ -78,7 +78,7 @@ node n5 {
     }
     canvas c1
     iconcoords {315.0 218.0}
-    labelcoords {315.0 242.0}
+    labelcoords {316.3333333333333 264.6666666666667}
     interface-peer {e0 n1}
     interface-peer {e1 n3}
 }
@@ -91,7 +91,7 @@ node n6 {
     }
     canvas c1
     iconcoords {316.0 412.0}
-    labelcoords {316.0 436.0}
+    labelcoords {318.6666666666667 457.3333333333333}
     interface-peer {e0 n1}
     interface-peer {e1 n4}
 }

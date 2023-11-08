@@ -2,7 +2,7 @@
 
 # formato: ./s1.sh <ficheiro_config>
 
-config="./config/s1.json"
+config="./config/cenario3/s1.json"
 
 if [ $# -eq 1 ]; then
     config=$1
