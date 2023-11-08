@@ -110,8 +110,6 @@ def svc_show_vizinhos(db: Database):
         time.sleep(5)
 
 #!#################################################################################################################
-
-#!#################################################################################################################
 #* Serviço de CHECK_VIDEO
 def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
     print(f"CHECK_VIDEO: Conversação estabelecida com {pedinte[0]}")

@@ -13,11 +13,12 @@ class Database:
         self.vizinhos = set()
         self.vizinhoslock = threading.Lock()
 
-        #? Talvez se possa fazer um dict: ip destino -> [ip vizinho] em que a ordem é a de preferencia
+        #? Talvez se possa fazer um dict: ip destino -> [ip vizinho] em que a ordem é a de preferencia. 
+        #* R: Acho que nem vai ser possivel com o bloqueio dos pedidos ja respondidos
         self.routingTable = dict() # ip destino -> ip vizinho
         self.routingTableLock = threading.Lock()
 
-        self.pedidosRespondidos = list() # lista de (id, timestamp) de pedidos respondidos. A timestamp existe para que se possa remover da lista passado um certo tempo
+        self.pedidosRespondidos = list() # lista de {id:int, origin:str, ts:timestamp) de pedidos respondidos. A timestamp existe para que se possa remover da lista passado um certo tempo
         self.pedidosRespondidosLock = threading.Lock()
 
 
@@ -103,23 +104,47 @@ class Database:
     def get_routing_table(self):
         with self.routingTableLock:
             return self.routingTable.copy()
-            
-    def add_pedido_respondido(self, id: int):
+        
+#* Secção de pedidos respondidos
+#           
+    def add_pedido_respondido(self, id_: int, origin: str):
         with self.pedidosRespondidosLock:
-            self.pedidosRespondidos.append((id, datetime.datetime.now()))
+            self.pedidosRespondidos.append(
+                {
+                    "id": id_,
+                    "origin": origin,
+                    "ts": datetime.datetime.now(),
+                }
+            )
+    
+    def add_pedido_respondido_msg(self, msg):
+        with self.pedidosRespondidosLock:
+            self.pedidosRespondidos.append(
+                {
+                    "id": msg.get_id(),
+                    "origin": msg.get_origem(),
+                    "ts": datetime.datetime.now(),
+                }
+            )
 
-    def remove_pedido_respondido(self):
-        """Elimina pedido respondido há mais de 10 segundos"""
+    def remove_pedidos_respondidos(self, max_age_secs:int = 10):
+        """Elimina pedido respondidos há mais de 'max_age_secs' segundos"""
         now = datetime.datetime.now()
+        min_timestamp = now - datetime.timedelta(seconds=max_age_secs)
         with self.pedidosRespondidosLock:
-            for i in range(len(self.pedidosRespondidos)):
-                if self.pedidosRespondidos[i][1] < now - datetime.timedelta(seconds=10):
-                    del self.pedidosRespondidos[i]
+            self.pedidosRespondidos = list(filter(lambda p: p["ts"] > min_timestamp, self.pedidosRespondidos))
 
-    def foi_respondido(self, id:int):
+    def foi_respondido(self, _id:int, origin: str):
         with self.pedidosRespondidosLock:
-            for i in range(len(self.pedidosRespondidos)):
-                if self.pedidosRespondidos[i][0] == id:
+            for p in self.pedidosRespondidos:
+                if p["id"] == _id and p["origin"] == origin:
+                    return True
+            return False
+    
+    def foi_respondido_msg(self, msg):
+        with self.pedidosRespondidosLock:
+            for p in self.pedidosRespondidos:
+                if p["id"] == msg.get_id() and p["origin"] == msg.get_origem():
                     return True
             return False
         
