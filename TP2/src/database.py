@@ -156,7 +156,7 @@ class Database:
         with self.vizinhoslock, self.routingTableLock, self.pedidosRespondidosLock, self.streamingLock:
             pedidosRespondidos_str = [
                 {**pedido, 'ts': pedido['ts'].strftime('%Y-%m-%d %H:%M:%S')}
-                for pedido in self.pedidosRespondidos
+                for pedido in self.pedidosRespondidos.copy()
             ]
             return (
                 f"Database:\n"
