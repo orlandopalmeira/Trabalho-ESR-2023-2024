@@ -153,12 +153,19 @@ class Database:
 
 
     def __str__(self):
-        with self.vizinhoslock:
-            with self.routingTableLock:
-                with self.pedidosRespondidosLock:
-                    with self.streamingLock:
-                        return f"Database:\n\tvizinhos: {self.vizinhos}\n\troutingTable: {self.routingTable}\n\tpedidosRespondidos: {self.pedidosRespondidos}\n\tstreaming: {self.streaming}"
-
+        with self.vizinhoslock, self.routingTableLock, self.pedidosRespondidosLock, self.streamingLock:
+            pedidosRespondidos_str = [
+                {**pedido, 'ts': pedido['ts'].strftime('%Y-%m-%d %H:%M:%S')}
+                for pedido in self.pedidosRespondidos
+            ]
+            return (
+                f"Database:\n"
+                f"\tvizinhos: {self.vizinhos}\n"
+                f"\troutingTable: {self.routingTable}\n"
+                f"\tpedidosRespondidos: {pedidosRespondidos_str}\n"
+                f"\tstreaming: {self.streaming}"
+            )
+    
     def __repr__(self):
         return self.__str__()
 

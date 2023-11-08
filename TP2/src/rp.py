@@ -37,7 +37,7 @@ def thread_for_each_interface(endereço, porta, function, db: Database_RP):
 #* SERVIÇO CHECK_VIDEOS
 
 def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
-    print(f"CHECK_VIDEO: Conversação estabelecida com {addr[0]}")
+    print(f"CHECK_VIDEO recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
     tipo = msg.get_tipo()
     pedido_id = msg.get_id()
@@ -49,7 +49,7 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
         print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}'")
         #! Talvez não seja necessário verificar, pq n ha stress em receber dois pedidos iguais (talvez)
         if db.foi_respondido_msg(msg):
-            print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
+            print(f"CHECK_VIDEO: Pedido do vizinho {addr[0]} já foi respondido. Pedido ignorado.")
             return
         
         # Gestão de pedidos repetidos
@@ -67,7 +67,7 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
             print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
             pass # Ignora o pedido
 
-        print(f"CHECK_VIDEO: Conversação encerrada com {addr}")
+        print(f"CHECK_VIDEO: Conversação encerrada com {addr[0]}")
 
 def svc_check_video(db: Database_RP):
     service_name = "svc_check_video"
@@ -87,7 +87,7 @@ def svc_check_video(db: Database_RP):
 #* SERVIÇO START_VIDEOS
 
 def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
-    print(f"START_VIDEO: Conversação estabelecida com {addr[0]}")
+    print(f"START_VIDEO recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
 
     video = msg.get_dados()['video'] #> Nome do vídeo que o remetente pretende ver 

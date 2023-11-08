@@ -144,7 +144,7 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
             vizinhos = db.get_vizinhos_for_broadcast(pedinte[0]) #> lista de vizinhos (excepto o remetente) onde ele vai efectuar um pedido de check video para descobrir onde está o vídeo
             msg_para_vizinhos = msg.serialize() #> para pedir o check video aos vizinhos (reaproveita a mensagem do cliente para manter o ID)
             vizinhos_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> este socket serve apenas para ele perguntar aos vizinhos se eles têm o vídeo 
-            vizinhos_socket.settimeout(5) #> Se o vizinho não encontrar o vídeo ele não responde, pelo que temos de definir um tempo máximo de espera. Se ultrapassar esse tempo, assumimos que o vizinho não encontrou nada.
+            vizinhos_socket.settimeout(4) #> Se o vizinho não encontrar o vídeo ele não responde, pelo que temos de definir um tempo máximo de espera. Se ultrapassar esse tempo, assumimos que o vizinho não encontrou nada.
 
             # Check video aos vizinhos
             for vizinho in vizinhos:
@@ -157,11 +157,12 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
                     resp_vizinho, addr_vizinho = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
                     resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
                     db.add_route(resp_vizinho.get_origem(),addr_vizinho[0])
-                    print(f"CHECK_VIDEO: Recebi confirmação da existência do video '{video}' de {addr_vizinho[0]}, original do {resp_vizinho.get_origem()}")
+                    print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {addr_vizinho[0]}, original do {resp_vizinho.get_origem()}")
                     if resp_vizinho.get_dados(): #> o vizinho tem o vídeo
                         sckt.sendto(resp_vizinho.serialize(), pedinte) #> envia a resposta do vizinho com as informações necessárias
                         break #> termina a recepção de mensagens porque já encontrou quem tem o vídeo
-                except socket.timeout: 
+                except socket.timeout:
+                    print(f"CHECK_VIDEO: No answers from {vizinho[0]} about '{video}' asked by {pedinte[0]} ")
                     pass
             
             vizinhos_socket.close()
