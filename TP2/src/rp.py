@@ -47,15 +47,15 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
 
     if tipo == Mensagem.check_video:
         print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}'")
-        # Para os casos em que recebe um pedido de um cliente que já respondeu (esta necessidade vem do facto de o cliente fazer broadcast do pedido)
-        if db.foi_respondido(pedido_id):
+        #! Talvez não seja necessário verificar, pq n ha stress em receber dois pedidos iguais (talvez)
+        if db.foi_respondido_msg(msg):
             print(f"CHECK_VIDEO: Pedido do vizinho {addr} já foi respondido. Pedido ignorado.")
             return
         
         # Gestão de pedidos repetidos
         db.add_route(cliente_origem, from_node)
         print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
-        db.add_pedido_respondido(pedido_id)
+        db.add_pedido_respondido_msg(msg)
 
         # Resposta ao pedido
         if db.servers_have_video(video):

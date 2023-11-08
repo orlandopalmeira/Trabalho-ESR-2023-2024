@@ -100,14 +100,26 @@ def svc_remove_vizinhos(port:int, db: Database):
 
 #* Serviço que mostra o conteudo da routing table
 # Função que lida com o serviço de mostrar vizinhos de 5 em 5 segundos
-def svc_show_vizinhos(db: Database):
-    service_name = 'svc_show_vizinhos'
-    print(f"Serviço '{service_name}' pronto para mostrar vizinhos de 5 em 5 segundos.")
+def svc_show_db(db: Database):
+    service_name = 'svc_show_db'
+    interval = 15
+    print(f"Serviço '{service_name}' pronto para mostrar a db de {interval} em {interval} segundos.")
     while True:
-        # res = db.get_vizinhos()
-        res = db.get_routing_table()
-        print(f"Routing Table: {res}")
-        time.sleep(5)
+        print(db)
+        print()
+        time.sleep(interval)
+
+#!#################################################################################################################
+
+#* Serviço que limpa os pedidos respondidos da base de dados
+def svc_clear_pedidos_resp(db: Database):
+    service_name = 'svc_clear_pedidos_resp'
+    interval = 15
+    max_age_secs = 10
+    print(f"Serviço '{service_name}' a limpar pedidos já respondidos há mais de {max_age_secs} de {interval} em {interval} segundos.")
+    while True:
+        db.remove_pedidos_respondidos(max_age_secs)
+        time.sleep(interval)
 
 #!#################################################################################################################
 #* Serviço de CHECK_VIDEO
@@ -285,7 +297,8 @@ def main():
     svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
     svc2_thread = threading.Thread(target=svc_start_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_stop_video, args=(db,))
-    svc51_thread = threading.Thread(target=svc_show_vizinhos, args=(db,))
+    svc4_thread = threading.Thread(target=svc_clear_pedidos_resp, args=(db,))
+    svc51_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads=[   
         svc1_thread,
@@ -294,7 +307,7 @@ def main():
         # svc4_thread,
         # svc5_thread,
         # svc6_thread,
-        # svc51_thread,
+        svc51_thread,
     ]
 
     for t in threads:
