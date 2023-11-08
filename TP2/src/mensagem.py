@@ -4,7 +4,6 @@ import pickle
 
 
 class Mensagem:
-    #! WIP
     start_video = 1 # Pede o vídeo e nos dados, vem o nome do vídeo
     metrica     = 2 # Pede a métrica
     stop_video  = 3 # Pede para parar o vídeo
@@ -17,7 +16,7 @@ class Mensagem:
         self.id:int = random.randint(0, 1000000)
         self.dados = dados
         self.origem:str = origem # IP da origem do pedido
-        self.timestamp = None # datetime.datetime.now() #! Talvez meter um método que atualize isto e talvez ate por esse metodo a ser chamado no Serialize() que é o ultimo sitio que ocorre possiveis alterações ao objeto
+        self.timestamp = None 
 
     def get_id(self):
         return self.id

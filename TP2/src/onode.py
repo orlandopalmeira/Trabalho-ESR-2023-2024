@@ -117,37 +117,41 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
     db.add_route(msg.get_origem(), pedinte[0]) #! (NÃO TESTADO) Povoamento da routing table com o endereço de origem mencionado na mensagem
     tipo = msg.get_tipo()
     if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
-        print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{msg.get_dados()}'")
-        video = msg.get_dados()
-        if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
-            print(f"CHECK_VIDEO: tenho o vídeo {video}")
-            response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
-            sckt.sendto(response.serialize(), pedinte) #> envia a resposta
-        else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
-            print(f"CHECK_VIDEO: não tenho o vídeo '{video}' => broadcast para os meus vizinhos") 
-            vizinhos = db.get_vizinhos_for_broadcast(pedinte[0]) #> lista de vizinhos (excepto o remetente) onde ele vai efectuar um pedido de check video para descobrir onde está o vídeo
-            msg_para_vizinhos = msg.serialize() #> para pedir o check video aos vizinhos (reaproveita a mensagem do cliente para manter o ID)
-            vizinhos_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> este socket serve apenas para ele perguntar aos vizinhos se eles têm o vídeo 
-            vizinhos_socket.settimeout(5) #> Se o vizinho não encontrar o vídeo ele não responde, pelo que temos de definir um tempo máximo de espera. Se ultrapassar esse tempo, assumimos que o vizinho não encontrou nada.
+        if not db.foi_respondido_msg(msg):
+            db.add_pedido_respondido_msg(msg)
+            video = msg.get_dados()
+            print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{video}'")
+            if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
+                print(f"CHECK_VIDEO: tenho o vídeo {video}")
+                response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
+                sckt.sendto(response.serialize(), pedinte) #> envia a resposta
+            else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
+                print(f"CHECK_VIDEO: não tenho o vídeo '{video}' => broadcast para os meus vizinhos") 
+                vizinhos = db.get_vizinhos_for_broadcast(pedinte[0]) #> lista de vizinhos (excepto o remetente) onde ele vai efectuar um pedido de check video para descobrir onde está o vídeo
+                msg_para_vizinhos = msg.serialize() #> para pedir o check video aos vizinhos (reaproveita a mensagem do cliente para manter o ID)
+                vizinhos_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> este socket serve apenas para ele perguntar aos vizinhos se eles têm o vídeo 
+                vizinhos_socket.settimeout(5) #> Se o vizinho não encontrar o vídeo ele não responde, pelo que temos de definir um tempo máximo de espera. Se ultrapassar esse tempo, assumimos que o vizinho não encontrou nada.
 
-            # Check video aos vizinhos
-            for vizinho in vizinhos:
-                vizinho = (vizinho,V_CHECK_PORT)
-                vizinhos_socket.sendto(msg_para_vizinhos, vizinho) #> faz um check_video ao vizinho
-            
-            # Recepção das respostas dos vizinhos
-            for vizinho in vizinhos: #> verifica respostas dos vizinhos até encontrar uma que indique alguém que tenha o vídeo
-                try:
-                    resp_vizinho, addr_vizinho = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
-                    resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
-                    db.add_route(resp_vizinho.get_origem(),addr_vizinho[0]) #! (NÃO TESTADO) Povoamento da routing table com o endereço de origem mencionado na mensagem
-                    if resp_vizinho.get_dados(): #> o vizinho tem o vídeo
-                        sckt.sendto(resp_vizinho.serialize(), pedinte) #> envia a resposta do vizinho com as informações necessárias
-                        break #> termina a recepção de mensagens porque já encontrou quem tem o vídeo
-                except socket.timeout: 
-                    pass
-            
-            vizinhos_socket.close()
+                # Check video aos vizinhos
+                for vizinho in vizinhos:
+                    vizinho = (vizinho,V_CHECK_PORT)
+                    vizinhos_socket.sendto(msg_para_vizinhos, vizinho) #> faz um check_video ao vizinho
+                
+                # Recepção das respostas dos vizinhos
+                for vizinho in vizinhos: #> verifica respostas dos vizinhos até encontrar uma que indique alguém que tenha o vídeo
+                    try:
+                        resp_vizinho, addr_vizinho = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
+                        resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
+                        db.add_route(resp_vizinho.get_origem(),addr_vizinho[0]) #! (NÃO TESTADO) Povoamento da routing table com o endereço de origem mencionado na mensagem
+                        if resp_vizinho.get_dados(): #> o vizinho tem o vídeo
+                            sckt.sendto(resp_vizinho.serialize(), pedinte) #> envia a resposta do vizinho com as informações necessárias
+                            break #> termina a recepção de mensagens porque já encontrou quem tem o vídeo
+                    except socket.timeout: 
+                        pass
+                
+                vizinhos_socket.close()
+        else:
+            print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{msg.get_dados()}' já foi respondido")
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER CHECK_VIDEOS!!!!!\n\n")
 
