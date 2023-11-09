@@ -31,7 +31,7 @@ def thread_for_each_interface(endereço, porta, function, db: Database):
             break
     server_socket.close()
 
-#!#################################################################################################################
+##################################################################################################################
 #? Serviço extra ainda inutilizado
 # Função para lidar com o serviço svc_add_vizinhos
 def handle_add_vizinhos(dados, socket, addr:tuple, db: Database):
@@ -63,7 +63,7 @@ def svc_add_vizinhos(port:int, db: Database):
 
     server_socket.close()
 
-#!#################################################################################################################
+##################################################################################################################
 #? Serviço extra ainda inutilizado
 # Função para lidar com o serviço svc_add_vizinhos
 def handle_remove_vizinhos(dados, socket, addr:tuple, db: Database):
@@ -96,9 +96,9 @@ def svc_remove_vizinhos(port:int, db: Database):
             break
     server_socket.close()
 
-#!#################################################################################################################
+##################################################################################################################
 
-#* Serviço que mostra o conteudo da routing table
+#* Serviço que mostra a base de dados
 # Função que lida com o serviço de mostrar vizinhos de 5 em 5 segundos
 def svc_show_db(db: Database):
     service_name = 'svc_show_db'
@@ -109,7 +109,7 @@ def svc_show_db(db: Database):
         print()
         time.sleep(interval)
 
-#!#################################################################################################################
+##################################################################################################################
 
 #* Serviço que limpa os pedidos respondidos da base de dados
 def svc_clear_pedidos_resp(db: Database):
@@ -121,12 +121,12 @@ def svc_clear_pedidos_resp(db: Database):
         db.remove_pedidos_respondidos(max_age_secs)
         time.sleep(interval)
 
-#!#################################################################################################################
+##################################################################################################################
 #* Serviço de CHECK_VIDEO
 def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
     print(f"CHECK_VIDEO: Conversação estabelecida com {pedinte[0]}")
     msg = Mensagem.deserialize(data)
-    db.add_route(msg.get_origem(), pedinte[0]) #! (NÃO TESTADO) Povoamento da routing table com o endereço de origem mencionado na mensagem
+    db.add_route(msg.get_origem(), pedinte[0]) 
     tipo = msg.get_tipo()
     if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
         if db.foi_respondido_msg(msg):
@@ -184,7 +184,7 @@ def svc_check_video(db: Database):
     for t in threads:
         t.join()
 
-#!#################################################################################################################
+##################################################################################################################
 #* Serviço de START_VIDEO
 
 def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
@@ -250,7 +250,7 @@ def svc_start_video(db: Database):
         
     for t in threads:
         t.join()
-#!#################################################################################################################
+##################################################################################################################
 
 #* Serviço de STOP_VIDEO
 
