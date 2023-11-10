@@ -11,7 +11,8 @@ from queue import Queue
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
-V_STOP_PORT = 3003 #> Porta de atendimento do serviço stop_videos
+V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
+ADD_VIZINHO_PORT= 3005 #> Porta de atendimento do serviço add_vizinho
 METRICS_PORT = 3010 #> Porta para solicitar a métrica ao Servidor
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C

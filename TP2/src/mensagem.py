@@ -9,6 +9,8 @@ class Mensagem:
     stop_video  = 3 # Pede para parar o vídeo
     check_video = 4 # Pede para verificar se tem um vídeo, e nome do nome vem no vídeo
     resp_check_video = 5 # Resposta ao pedido de check_video
+    add_vizinho = 6 # Notifica vizinhos da chegada de um novo vizinho
+    rmv_vizinho = 7 # Notifica vizinhos da remoção de um novo vizinho #! Não é usado
 
 
     def __init__(self, tipo:int, dados="", origem:str = ""):
@@ -29,6 +31,9 @@ class Mensagem:
     
     def get_dados(self):
         return self.dados
+    
+    def set_dados(self, dados):
+        self.dados = dados
     
     def get_timestamp(self):
         return self.timestamp

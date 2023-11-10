@@ -8,9 +8,11 @@ from mensagem import Mensagem
 from utils import get_ips
 from queue import Queue
 
-V_CHECK_PORT = 3001
-V_START_PORT = 3002
-V_STOP_PORT = 3003
+V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
+V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
+V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
+ADD_VIZINHO_PORT= 3005 #> Porta de atendimento do serviço add_vizinho
+
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
 def ctrlc_handler(sig, frame):
@@ -32,24 +34,29 @@ def thread_for_each_interface(endereço, porta, function, db: Database):
     server_socket.close()
 
 ##################################################################################################################
-#? Serviço extra ainda inutilizado
+#! Serviço extra ainda inutilizado - Serviço de ADD_VIZINHOS
 # Função para lidar com o serviço svc_add_vizinhos
-def handle_add_vizinhos(dados, socket, addr:tuple, db: Database):
-    print(f"Conversação estabelecida com {addr}")
-
+def handle_add_vizinhos(msg, socket, addr:tuple, db: Database):
+    print(f"ADD_VIZINHO: recebido de {addr[0]}")
+    msg = Mensagem.deserialize(msg)
+    if not msg.get_tipo() == Mensagem.add_vizinho:
+        print(f"ADD_VIZINHO: pedido de {addr[0]} não é do tipo new_vizinho")
+        return
+    
     db.add_vizinho(addr[0])
-    time.sleep(3)
 
-    response = f"{addr[0]} adicionado com sucesso"
-    socket.sendto(response.encode('utf-8'), addr)
+    msg.set_dados("ACK")
+    response = msg.serialize()
+    socket.sendto(response, addr)
 
-    print(f"Conversação encerrada com {addr}")
+    print(f"ADD_VIZINHO: {addr[0]} adicionado aos vizinhos com sucesso.")
 
 # Função que lida com o serviço de adicionar vizinhos
-def svc_add_vizinhos(port:int, db: Database):
+def svc_add_vizinhos(db: Database):
     service_name = 'svc_add_vizinhos'
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
+    port = ADD_VIZINHO_PORT
     server_socket.bind((endereco, port))
     print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
 
@@ -64,13 +71,27 @@ def svc_add_vizinhos(port:int, db: Database):
     server_socket.close()
 
 ##################################################################################################################
-#? Serviço extra ainda inutilizado
+#! Serviço de REMOVE_VIZINHOS - INACABADO
 # Função para lidar com o serviço svc_add_vizinhos
 def handle_remove_vizinhos(dados, socket, addr:tuple, db: Database):
+
+    print(f"REMOVE_VIZINHO: recebido de {addr[0]}")
+    msg = Mensagem.deserialize(msg)
+    if not msg.get_tipo() == Mensagem.add_vizinho: # mensagem será de tipo diferente
+        print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo new_vizinho")
+        return
+    
+    r = db.remove_vizinho(addr[0])
+
+    msg.set_dados("ACK")
+    response = msg.serialize()
+    socket.sendto(response, addr)
+
+    print(f"REMOVE_VIZINHO: {addr[0]} adicionado aos vizinhos com sucesso.")
+    # ----------
     print(f"Conversação estabelecida com {addr}")
     
     response = db.remove_vizinho(addr[0])
-    time.sleep(3)
     print(f"Removendo vizinho...{addr[0]}")
 
     socket.sendto(response.encode('utf-8'), addr)
@@ -95,6 +116,41 @@ def svc_remove_vizinhos(port:int, db: Database):
             print(f"Erro svc_remove_vizinhos: {e}")
             break
     server_socket.close()
+
+##################################################################################################################
+#* Serviço que notifica vizinhos da sua inicialização
+
+def handle_new_vizinho(vizinho: tuple, cur_retries = 0, sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)):
+    # sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    MAX_RETRIES = 2
+    sckt.settimeout(2)
+    msg = Mensagem(Mensagem.add_vizinho)
+    sckt.sendto(msg.serialize(), vizinho)
+    try:
+        resp, _ = sckt.recvfrom(1024)
+        resp = Mensagem.deserialize(resp)
+        if resp.get_tipo() == Mensagem.resp_new_vizinho:
+            print(f"Vizinho {vizinho[0]} notificado com sucesso.")
+        else:
+            print(f"Vizinho {vizinho[0]} não respondeu como esperado.")
+    except socket.timeout:
+        cur_retries += 1
+        if cur_retries < MAX_RETRIES:
+            handle_new_vizinho(vizinho, cur_retries, sckt)
+        else:
+            print(f"Não consegui notificar {vizinho[0]}")
+    sckt.close()
+
+
+
+def svc_notify_vizinhos(db: Database):
+    
+    vizinhos = db.get_vizinhos()
+    vizinhos_addr = [(vizinho, ADD_VIZINHO_PORT) for vizinho in vizinhos]
+    print(f"A notificar vizinhos da minha existência.")
+
+    for v in vizinhos_addr:
+        threading.Thread(target=handle_new_vizinho, args=(v,)).start()
 
 ##################################################################################################################
 

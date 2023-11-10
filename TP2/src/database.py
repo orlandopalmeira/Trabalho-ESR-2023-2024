@@ -34,12 +34,13 @@ class Database:
             self.vizinhos.add(ip)
 
     def remove_vizinho(self, ip):
+        """Retorna 0 se o ip foi removido com sucesso, 1 caso não existisse"""
         with self.vizinhoslock:
             try:
                 self.vizinhos.remove(ip)
-                return "Vizinho removido com sucesso"
+                return 0
             except KeyError:
-                return "Vizinho não existia"
+                return 1
 
     # Retorna uma copia dos vizinhos
     def get_vizinhos(self):

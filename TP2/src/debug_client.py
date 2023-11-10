@@ -3,36 +3,18 @@ import sys
 from mensagem import Mensagem
 from utils import get_ips
 
-if __name__ == "__main__":
-    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
-    #* Se quisermos associar uma porta especifica ao cliente
-    # client_ip = "localhost"
-    # client_port = 3030
-    # client.bind(client_ip, client_port)
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    # destination_ip = '10.0.4.10'
-    destination_ip = sys.argv[1]
-    destination_port = 3001
-    if len(sys.argv) >= 3:
-        destination_port = int(sys.argv[2])
 
-    addr = (destination_ip, destination_port)
+vizinhos = ["10.0.18.1", "10.0.19.2", "10.0.16.1", "10.0.17.1"]
 
-    # my_ip = sys.argv[3]
+vizinhos_addr = [(ip, 3041) for ip in vizinhos]
 
-    # message = message.encode('utf-8')
-    message = Mensagem(Mensagem.check_video, dados="movie.Mjpeg", origem=get_ips()[0])
-    print(f"Mensagem a ser enviada:\n {message}\n" + "-"*30 )
+msg = "hello"
+msg=msg.encode('utf-8')
 
-    client.sendto(message.serialize(), addr)
+for v in vizinhos_addr:
+    s.sendto(msg, v)
 
-    response, _ = client.recvfrom(1024)
-    response = Mensagem.deserialize(response)
-    print(f"Resposta obtida:\n {response}")
 
-    # resposta, add = client.recvfrom(1024)
-    # resposta = resposta.decode('utf-8')
-    # print(f"Resposta do servidor: {resposta}")
-
-    client.close()
+s.close()
