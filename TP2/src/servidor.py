@@ -57,7 +57,7 @@ class ServerWorker:
 		rtpPacket = RtpPacket()
 		
 		rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
-		print("Encoding RTP Packet: " + str(seqnum))
+		# print("Encoding RTP Packet: " + str(seqnum))
 		
 		return rtpPacket.getPacket()
 
