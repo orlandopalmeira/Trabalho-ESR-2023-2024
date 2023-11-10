@@ -24,8 +24,6 @@ if __name__ == "__main__":
 		config = json.load(f)
 
 	#* Configuração do cliente 
-	#! Talvez meter type check nisto para ver se é string e tal, pq me deu trabalho de identificar que estava aqui um problema
-	# self_ip = config["self_ip"] # versão antiga
 	self_ip = get_ips()[0] #> Obtém informação do seu próprio IP
 	dest_addr = config["vizinho"]
 	video = sys.argv[2]
@@ -57,16 +55,15 @@ if __name__ == "__main__":
 	print(msg)
 
 	#* Iniciar o vídeo
-	msg = Mensagem(Mensagem.start_video, dados={'destino': msg.get_origem(), 'video': video}, origem=self_ip) #! (!VER MELHOR ISTO!) assume-se que o cliente envia nos dados da mensagem um dicionário com o formato {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
+	msg = Mensagem(Mensagem.start_video, dados={'destino': msg.get_origem(), 'video': video}, origem=self_ip)
 	print(f"Pedido de vídeo: {msg}")
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_start)
 	try:
 		#! Verificar timeouts e assim la dentro do clienteGUI
 		# Create a new client
-		# app = ClienteGUI(root, addr, port)
 		app = ClienteGUI(root, sckt)
-		app.master.title("Cliente Exemplo")	
+		app.master.title(f"Cliente {self_ip} - {video}") 
 		root.mainloop()
 	finally:
 		print("A terminar vídeo...")
