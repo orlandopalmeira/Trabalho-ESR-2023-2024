@@ -209,7 +209,7 @@ def svc_answer_metrics(port:int, db: Database_Server):
 
 def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
-	print(f"Conversação estabelecida com {addr}")
+	# print(f"Conversação estabelecida com {addr}")
 
 	if msg.get_tipo() == Mensagem.metrica:
 		msg.update_timestamp()
