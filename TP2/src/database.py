@@ -159,11 +159,11 @@ class Database:
                 for pedido in self.pedidosRespondidos.copy()
             ]
             return (
-                f"Database:\n"
+                f"\nDatabase:\n"
                 f"\tvizinhos: {self.vizinhos}\n"
                 f"\troutingTable: {self.routingTable}\n"
                 f"\tpedidosRespondidos: {pedidosRespondidos_str}\n"
-                f"\tstreaming: {self.streaming}"
+                f"\tstreaming: {self.streaming}\n"
             )
     
     def __repr__(self):

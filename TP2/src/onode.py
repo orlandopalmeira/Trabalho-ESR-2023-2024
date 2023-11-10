@@ -99,15 +99,13 @@ def svc_remove_vizinhos(port:int, db: Database):
 ##################################################################################################################
 
 #* Serviço que mostra a base de dados
-# Função que lida com o serviço de mostrar vizinhos de 5 em 5 segundos
+# Função que lida com o serviço de mostrar vizinhos quando é premido ENTER
 def svc_show_db(db: Database):
     service_name = 'svc_show_db'
-    interval = 15
-    print(f"Serviço '{service_name}' pronto para mostrar a db de {interval} em {interval} segundos.")
+    print(f"Serviço '{service_name}' pronto para mostrar a db ao premir ENTER. (DEBUG)")
     while True:
+        input() # Espera por um input
         print(db)
-        print()
-        time.sleep(interval)
 
 ##################################################################################################################
 
@@ -209,7 +207,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
             start_video_msg = Mensagem(Mensagem.start_video, dados=dados) 
             str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             str_sckt.settimeout(5)
-            print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}'para {destino_vizinho}")
+            print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {destino_vizinho}")
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
             db.add_streaming(video, addr) #! Ter atenção que pode haver um curto espaço temporal em que é dito que há streaming de um determinado vídeo mas ainda não ter começado (mt improvavel, mas...)
             relay_video(str_sckt, video, destino_vizinho, db)
@@ -255,13 +253,10 @@ def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
     msg = Mensagem.deserialize(msg)
 
     tipo = msg.get_tipo()
-    pedido_id = msg.get_id()
-    cliente_origem = msg.get_origem()
-    from_node = addr[0]
     video = msg.get_dados()
 
     if tipo == Mensagem.stop_video:
-        print(f"STOP_VIDEO: Parei de transmitir o vídeo '{video}' para {addr[0]} ")
+        print(f"STOP_VIDEO: Parei de transmitir o vídeo '{video}' para {addr[0]}")
         db.remove_streaming(video, addr)
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER STOP_VIDEOS!!!!!\n\n")
