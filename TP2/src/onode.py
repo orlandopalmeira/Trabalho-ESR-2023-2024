@@ -124,7 +124,6 @@ def svc_clear_pedidos_resp(db: Database):
 ##################################################################################################################
 #* Serviço de CHECK_VIDEO
 def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
-    print(f"CHECK_VIDEO: Conversação estabelecida com {pedinte[0]}")
     msg = Mensagem.deserialize(data)
     db.add_route(msg.get_origem(), pedinte[0]) 
     tipo = msg.get_tipo()
@@ -134,9 +133,9 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
             return
         db.add_pedido_respondido_msg(msg) #> regista o pedido para não responder novamente no futuro
         video = msg.get_dados()
-        print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{video}'")
+        print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{video}', original do {msg.get_origem()}")
         if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
-            print(f"CHECK_VIDEO: tenho o vídeo {video}")
+            print(f"CHECK_VIDEO: tenho o vídeo '{video}'")
             response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
             sckt.sendto(response.serialize(), pedinte) #> envia a resposta
         else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
@@ -187,8 +186,6 @@ def svc_check_video(db: Database):
 #* Serviço de START_VIDEO
 
 def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
-    print(f"START_VIDEO: Conversação estabelecida com {addr[0]}")
-
     msg = Mensagem.deserialize(msg)
 
     tipo = msg.get_tipo()
@@ -200,27 +197,28 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     ip_destino = dados['destino']
 
     if tipo == Mensagem.start_video:
-        if db.is_streaming_video(video):#> Já está a transmitir o vídeo
-            print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
+        print(f"START_VIDEO: pedido por {addr[0]}, video '{video}', original do {cliente_origem}")
+        if db.is_streaming_video(video): #> Já está a transmitir o vídeo
+            print(f"START_VIDEO: O vídeo '{video}' já está a ser transmitido")
             db.add_streaming(video, addr) #> Regista o cliente/nodo que está a receber o vídeo
+            print(f"START_VIDEO: {addr[0]} adicionado à lista de transmissão do vídeo '{video}', para o Cliente {cliente_origem}")
             
-        else:#> Ainda não está a transmitir o vídeo
-            print(f"START_VIDEO: O vídeo {video} ainda não está a ser transmitido")
+        else: #> Ainda não está a transmitir o vídeo
             #! Talvez ter atenção algum caso em que não haja vizinho para o destino especificado (apesar de ser teoricamente impossível)
             destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
             start_video_msg = Mensagem(Mensagem.start_video, dados=dados) 
             str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             str_sckt.settimeout(5)
+            print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}'para {destino_vizinho}")
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
             db.add_streaming(video, addr) #! Ter atenção que pode haver um curto espaço temporal em que é dito que há streaming de um determinado vídeo mas ainda não ter começado (mt improvavel, mas...)
-            print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
             relay_video(str_sckt, video, destino_vizinho, db)
 
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER START_VIDEOS!!!!!\n\n")
 
 def relay_video(str_sckt, video, server: str, db: Database):
-    print(f"START_VIDEO: Starting relay_video for video {video}")
+    print(f"START_VIDEO: Starting relay_video for video '{video}'")
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
@@ -263,7 +261,7 @@ def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
     video = msg.get_dados()
 
     if tipo == Mensagem.stop_video:
-        print(f"STOP_VIDEO: Parei de transmitir o vídeo {video} para {addr[0]} ")
+        print(f"STOP_VIDEO: Parei de transmitir o vídeo '{video}' para {addr[0]} ")
         db.remove_streaming(video, addr)
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER STOP_VIDEOS!!!!!\n\n")
