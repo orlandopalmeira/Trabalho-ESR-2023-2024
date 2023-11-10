@@ -102,10 +102,11 @@ def svc_remove_vizinhos(port:int, db: Database):
 # Função que lida com o serviço de mostrar vizinhos quando é premido ENTER
 def svc_show_db(db: Database):
     service_name = 'svc_show_db'
-    print(f"Serviço '{service_name}' pronto para mostrar a db ao premir ENTER. (DEBUG)")
+    interval = 15
+    print(f"Serviço '{service_name}' pronto para mostrar a dbde {interval} em {interval} segundos. (DEBUG)")
     while True:
-        input() # Espera por um input
         print(db)
+        time.sleep(interval)
 
 ##################################################################################################################
 
