@@ -37,7 +37,6 @@ def thread_for_each_interface(endereço, porta, function, db: Database_RP):
 #* SERVIÇO CHECK_VIDEOS
 
 def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
-    print(f"CHECK_VIDEO recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
     tipo = msg.get_tipo()
     pedido_id = msg.get_id()
@@ -46,7 +45,7 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     video = msg.get_dados()
 
     if tipo == Mensagem.check_video:
-        print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}'")
+        print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}', originário do cliente {cliente_origem}")
         #! Talvez não seja necessário verificar, pq n ha stress em receber dois pedidos iguais (talvez)
         if db.foi_respondido_msg(msg):
             print(f"CHECK_VIDEO: Pedido do vizinho {addr[0]} já foi respondido. Pedido ignorado.")
@@ -87,15 +86,15 @@ def svc_check_video(db: Database_RP):
 #* SERVIÇO START_VIDEOS
 
 def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
-    print(f"START_VIDEO recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
 
     video = msg.get_dados()['video'] #> Nome do vídeo que o remetente pretende ver 
 
+    print(f"START_VIDEO recebido de {addr[0]} pedindo o video '{video}'")
     if db.servers_have_video(video): #> O RP verifica a existência do vídeo na overlay
-        print(f"START_VIDEO: O vídeo {video} existe na rede overlay.")
+        # print(f"START_VIDEO: O vídeo '{video}' existe na rede overlay.")
         if db.is_streaming_video(video): #> O RP verifica se o vídeo já está a ser transmitido
-            print(f"START_VIDEO: O vídeo {video} já está a ser transmitido")
+            print(f"START_VIDEO: O vídeo '{video}' já está a ser transmitido")
             db.add_streaming(video, addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
             
         else: #> Ainda não está a receber o vídeo
@@ -106,9 +105,11 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
             sckt.settimeout(5)
             sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT)) #> Envia a mensagem de soliticação do vídeo para o servidor
             db.add_streaming(video, addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
-            print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
+            print(f"START_VIDEO: Transmissão do vídeo '{video}' iniciada")
             relay_video(sckt, video, best_server, db) #> Inicia o envio do vídeo para os clientes/nodos
-
+    else:
+        print(f"START_VIDEO: O vídeo '{video}' não existe na rede overlay. Pedido ignorado.")
+        
 def relay_video(str_sckt, video, server: str, db: Database_RP):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
