@@ -206,14 +206,13 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
             
         else:#> Ainda não está a transmitir o vídeo
             print(f"START_VIDEO: O vídeo {video} ainda não está a ser transmitido")
-            #! Talvez ter atenção algum caso em que não haja vizinho para o destino especificado (apesar de ser teoricamente ompossível)
+            #! Talvez ter atenção algum caso em que não haja vizinho para o destino especificado (apesar de ser teoricamente impossível)
             destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
             start_video_msg = Mensagem(Mensagem.start_video, dados=dados) 
             str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             str_sckt.settimeout(5)
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
             db.add_streaming(video, addr) #! Ter atenção que pode haver um curto espaço temporal em que é dito que há streaming de um determinado vídeo mas ainda não ter começado (mt improvavel, mas...)
-            #! Cria-se aqui uma nova thread??
             print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
             relay_video(str_sckt, video, destino_vizinho, db)
 
@@ -225,7 +224,7 @@ def relay_video(str_sckt, video, server: str, db: Database):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
-            packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
+            packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer aqui aquela função que abstrai a recepção de packets/frames em que usa o serviço ALIVE para o tratamento de erros/falhas.
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo

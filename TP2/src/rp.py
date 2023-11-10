@@ -33,7 +33,7 @@ def thread_for_each_interface(endereço, porta, function, db: Database_RP):
             break
     server_socket.close()
 
-#!#################################################################################################################
+##################################################################################################################
 #* SERVIÇO CHECK_VIDEOS
 
 def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
@@ -83,7 +83,7 @@ def svc_check_video(db: Database_RP):
     for t in threads:
         t.join()
 
-#!#################################################################################################################
+##################################################################################################################
 #* SERVIÇO START_VIDEOS
 
 def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
@@ -106,7 +106,6 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
             sckt.settimeout(5)
             sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT)) #> Envia a mensagem de soliticação do vídeo para o servidor
             db.add_streaming(video, addr) #> Regista o cliente/nodo como um "visualizador" do vídeo
-            #! Cria-se aqui uma nova thread??
             print(f"START_VIDEO: Transmissão do vídeo {video} iniciada")
             relay_video(sckt, video, best_server, db) #> Inicia o envio do vídeo para os clientes/nodos
 
@@ -114,7 +113,7 @@ def relay_video(str_sckt, video, server: str, db: Database_RP):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
-            packet, _ = str_sckt.recvfrom(20480) #! Aqui pode ser necessário indicar um socket timeout para o caso do servidor deixar de enviar o video
+            packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer aqui aquela função que abstrai a recepção de packets/frames em que usa o serviço ALIVE para o tratamento de erros/falhas.
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
@@ -139,7 +138,7 @@ def svc_start_video(db: Database_RP):
     for t in threads:
         t.join()
 
-#!#################################################################################################################
+##################################################################################################################
 #* SERVIÇO STOP_VIDEOS
 
 def handle_stop_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
@@ -161,7 +160,7 @@ def svc_stop_video(db: Database_RP):
     for t in threads:
         t.join()
 
-#!#################################################################################################################
+##################################################################################################################
 #* Solicitar a lista dos vídeos nos servidores
 
 # Pede a um servidor os seus videos
@@ -205,7 +204,7 @@ def svc_get_videos_from_servers_continuous(db: Database_RP):
         svc_get_videos_from_servers(db)
         time.sleep(50)
 
-#!#################################################################################################################
+##################################################################################################################
 #* Metricas 
 
 # Pede a um servidor os seus videos
@@ -220,7 +219,8 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
         for i in range(num_of_requests):
             msg = Mensagem(Mensagem.metrica).serialize()
             sckt.sendto(msg, server)
-            print(f"Enviada mensagem de teste {i} para o servidor {server}")
+            # print(f"Enviada mensagem de teste {i} para o servidor {server}")
+        print(f"Enviadas {num_of_requests} mensagens de métrica para o servidor {server}")  
 
         successes = 0
         sum_delivery_time = 0
@@ -270,7 +270,7 @@ def svc_measure_metrics_continuous(db: Database_RP):
         svc_measure_metrics(db)
         time.sleep(20) # talvez meter isto a 1 minuto
 
-#!#################################################################################################################
+##################################################################################################################
 
 #! Para debug, que mostra o conteúdo da base de dados
 def svc_show_db(db: Database_RP):
@@ -278,7 +278,7 @@ def svc_show_db(db: Database_RP):
         print("-"*20); print(db); print("-"*20)
         time.sleep(10)
 
-#!#################################################################################################################
+##################################################################################################################
 
 
 def main():

@@ -143,7 +143,6 @@ def handle_start_video(dados, socket, addr:tuple, db: Database_Server):
 	if msg.get_tipo() == Mensagem.start_video:
 		print("Chegou ao start_video")
 		video = msg.get_dados()
-		#! Envio de stream de video (talvez se faça um thread para isso)
 		if not db.has_video(video):
 			print(f"START_VIDEO without video: Não tenho o video {video}")
 			raise Exception(f"START_VIDEO without video {video}")
