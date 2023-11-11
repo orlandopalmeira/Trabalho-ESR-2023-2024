@@ -35,12 +35,15 @@ class Database:
 
     def remove_vizinho(self, ip):
         """Retorna 0 se o ip foi removido com sucesso, 1 caso não existisse"""
+        r = 0
         with self.vizinhoslock:
             try:
                 self.vizinhos.remove(ip)
-                return 0
             except KeyError:
-                return 1
+                r = 1
+        self.remove_streaming_for_ip(ip)
+        self.remove_route_for_ip(ip)
+        return r
 
     # Retorna uma copia dos vizinhos
     def get_vizinhos(self):
@@ -68,7 +71,7 @@ class Database:
         # return list(map(lambda x: x[1], tuples))
         return tuples
             
-    def add_streaming(self, video, addr):
+    def add_streaming(self, video:str, addr:tuple):
         with self.streamingLock:
             if video in self.streaming:
                 self.streaming[video].append(addr)
@@ -85,11 +88,23 @@ class Database:
             except KeyError:
                 print("Streaming não existia")
 
+    def remove_streaming_for_ip(self, ip:str):
+        with self.streamingLock:
+            for video in self.streaming:
+                self.streaming[video] = [x for x in self.streaming[video] if x[0] != ip]
+                if len(self.streaming[video]) == 0:
+                    del self.streaming[video]
+
+    def remove_route_for_ip(self, ip:str):
+        with self.routingTableLock:
+            for ip_destino in self.routingTable:
+                if self.routingTable[ip_destino] == ip:
+                    del self.routingTable[ip_destino]
+
     def add_route(self, ip_destino:str, ip_vizinho:str):
         with self.routingTableLock:
             self.routingTable[ip_destino] = ip_vizinho
 
-    #? Método inutilizado uma vez que a remoção da rota ja é feita automaticamente na remove_streaming
     def remove_route(self, ip_destino:str):
         with self.routingTableLock:
             try:
