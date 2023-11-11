@@ -13,6 +13,7 @@ V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
 V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
 ADD_VIZINHO_PORT= 3005 #> Porta de atendimento do serviço add_vizinho
+RMV_VIZINHO_PORT= 3006 #> Porta de atendimento do serviço rmv_vizinho
 METRICS_PORT = 3010 #> Porta para solicitar a métrica ao Servidor
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
@@ -273,6 +274,80 @@ def svc_measure_metrics_continuous(db: Database_RP):
         time.sleep(20) # talvez meter isto a 1 minuto
 
 ##################################################################################################################
+#* Serviço de ADD_VIZINHOS
+# Função para lidar com o serviço svc_add_vizinhos
+def handle_add_vizinhos(msg, socket, addr:tuple, db: Database_RP):
+    print(f"ADD_VIZINHO: recebido de {addr[0]}")
+    msg = Mensagem.deserialize(msg)
+    if not msg.get_tipo() == Mensagem.add_vizinho:
+        print(f"ADD_VIZINHO: pedido de {addr[0]} não é do tipo ADD_VIZINHO")
+        return
+    
+    db.add_vizinho(addr[0])
+
+    msg.set_dados("ACK")
+    response = msg.serialize()
+    socket.sendto(response, addr)
+
+    print(f"ADD_VIZINHO: {addr[0]} adicionado aos vizinhos com sucesso.")
+
+# Função que lida com o serviço de adicionar vizinhos
+def svc_add_vizinhos(db: Database_RP):
+    service_name = 'svc_add_vizinhos'
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    endereco = '0.0.0.0' # Listen on all interfaces
+    port = ADD_VIZINHO_PORT
+    server_socket.bind((endereco, port))
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_add_vizinhos, args=(dados, server_socket, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_add_vizinhos: {e}")
+            break
+
+    server_socket.close()
+
+##################################################################################################################
+#* Serviço de REMOVE_VIZINHOS 
+# Função para lidar com o serviço svc_add_vizinhos
+def handle_remove_vizinhos(msg, addr:tuple, db: Database_RP):
+    print(f"REMOVE_VIZINHO: recebido de {addr[0]}")
+    msg = Mensagem.deserialize(msg)
+    if not msg.get_tipo() == Mensagem.rmv_vizinho: # mensagem será de tipo diferente
+        print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo RMV_VIZINHO")
+        return
+    
+    r = db.remove_vizinho(addr[0])
+    if r == 1:
+        print(f"REMOVE_VIZINHO: {addr[0]} NÃO EXISTIA na lista de vizinhos!!!!!")
+    else:
+        print(f"REMOVE_VIZINHO: {addr[0]} removido dos vizinhos com sucesso.")
+        #! Talvez tbm tenha remover o streaming, caso haja algum streaming a ser enviado para ele, ou passar isso para a responsabilidade do rmv_vizinho
+
+# Função que lida com o serviço de adicionar vizinhos
+def svc_remove_vizinhos(db: Database_RP):
+    service_name = 'svc_remove_vizinhos'
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    endereco = '0.0.0.0' # Listen on all interfaces
+    port = RMV_VIZINHO_PORT
+    addr = (endereco, port)
+    server_socket.bind(addr)
+
+    print(f"Serviço '{service_name}' pronto para receber conexões na porta {port}")
+
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_remove_vizinhos, args=(dados, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_remove_vizinhos: {e}")
+            break
+    server_socket.close()
+
+##################################################################################################################
 
 #! Para debug, que mostra o conteúdo da base de dados
 def svc_show_db(db: Database_RP):
@@ -303,6 +378,8 @@ def main():
     svc2_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_start_video, args=(db,))
     svc4_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
+    svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
+    svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
     # show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
@@ -310,6 +387,8 @@ def main():
         svc2_thread, 
         svc3_thread,
         svc4_thread,
+        svc5_thread,
+        svc6_thread
         # show_db_thread
     ]
 
