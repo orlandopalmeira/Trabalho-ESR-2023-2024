@@ -7,9 +7,15 @@ class Database:
 
     def __init__(self):
 
-        self.streaming = dict() # {nome_video: [addr]}
+        # Info acerca dos nós para os quais estou a fazer streaming
+        self.streaming = dict() # {nome_video: [addr]} em que addr é um tuple (ip, port)
         self.streamingLock = threading.Lock()
 
+        # Info acerca dos nós que me estão a transmitir streaming
+        self.streaming_from = dict() # {ip: [nome_video]} em que ip é uma string
+        self.streaming_fromLock = threading.Lock()
+
+        # Info acerca dos meus vizinhos
         self.vizinhos = set()
         self.vizinhoslock = threading.Lock()
 
@@ -18,22 +24,23 @@ class Database:
         self.routingTable = dict() # ip destino -> ip vizinho
         self.routingTableLock = threading.Lock()
 
-        self.pedidosRespondidos = list() # lista de {id:int, origin:str, ts:timestamp) de pedidos respondidos. A timestamp existe para que se possa remover da lista passado um certo tempo
+        # Lista de {id:int, origin:str, ts:timestamp) de pedidos respondidos. A timestamp existe para que se possa remover da lista passado um certo tempo
+        self.pedidosRespondidos = list() 
         self.pedidosRespondidosLock = threading.Lock()
 
 
     # Lê o ficheiro de configuração JSON e guarda o necessário na base de dados
-    def read_config_file(self, filepath):
+    def read_config_file(self, filepath:str):
         with open(filepath) as f:
             data = json.load(f)
         with self.vizinhoslock:
             self.vizinhos = set(data["vizinhos"])
 
-    def add_vizinho(self, ip):
+    def add_vizinho(self, ip:str):
         with self.vizinhoslock:
             self.vizinhos.add(ip)
 
-    def remove_vizinho(self, ip):
+    def remove_vizinho(self, ip:str):
         """Retorna 0 se o ip foi removido com sucesso, 1 caso não existisse"""
         r = 0
         with self.vizinhoslock:
@@ -42,6 +49,7 @@ class Database:
             except KeyError:
                 r = 1
         self.remove_streaming_for_ip(ip)
+        self.remove_ip_streaming_from(ip)
         self.remove_route_for_ip(ip)
         return r
 
@@ -59,11 +67,11 @@ class Database:
             quantos = len(self.vizinhos)
         return quantos
 
-    def is_streaming_video(self, video):
+    def is_streaming_video(self, video:str):
         with self.streamingLock:
             return video in self.streaming
         
-    def get_clients_streaming(self, video):
+    def get_clients_streaming(self, video:str):
         with self.streamingLock:
             if video not in self.streaming:
                 return []
@@ -78,7 +86,7 @@ class Database:
             else:
                 self.streaming[video] = [addr]
 
-    def remove_streaming(self, video, addr):
+    def remove_streaming(self, video:str, addr:tuple):
         with self.streamingLock:
             try:
                 self.streaming[video] = [x for x in self.streaming[video] if x != addr] #> Remove o endereço addr da lista, se existir
@@ -94,6 +102,39 @@ class Database:
                 self.streaming[video] = [x for x in self.streaming[video] if x[0] != ip]
                 if len(self.streaming[video]) == 0:
                     del self.streaming[video]
+
+#####################? Merece revisão
+#! Aplicar o add_streaming_from e remove_streaming_from em conjunto com o add_streaming e remove_streaming
+    def add_streaming_from(self, ip:str, video:str):
+        with self.streaming_fromLock:
+            if ip in self.streaming_from:
+                self.streaming_from[ip].append(video)
+            else:
+                self.streaming_from[ip] = [video]
+
+    def remove_streaming_from(self, ip:str, video:str):
+        with self.streaming_fromLock:
+            try:
+                self.streaming_from[ip].remove(video)
+                if len(self.streaming_from[ip]) == 0:
+                    del self.streaming_from[ip]
+                print(f"Streaming_from de {ip} do video '{video}' removido com sucesso")
+            except KeyError:
+                print(f"Streaming_from de {ip} do video '{video}'")
+
+    def remove_ip_streaming_from(self, ip:str):
+        with self.streaming_fromLock:
+            try:
+                del self.streaming_from[ip]
+            except KeyError:
+                pass
+
+    # talvez passar como argumento o video 
+    def is_transmitting_video(self, ip:str):
+        with self.streaming_fromLock:
+            return ip in self.streaming_from
+
+#?###################
 
     def remove_route_for_ip(self, ip:str):
         with self.routingTableLock:
@@ -176,10 +217,11 @@ class Database:
             ]
             return (
                 f"\nDatabase:\n"
+                f"\tstreaming: {self.streaming}\n"
+                f"\tstreaming_from: {self.streaming_from}\n"
                 f"\tvizinhos: {self.vizinhos}\n"
                 f"\troutingTable: {self.routingTable}\n"
                 f"\tpedidosRespondidos: {pedidosRespondidos_str}\n"
-                f"\tstreaming: {self.streaming}\n"
             )
     
     def __repr__(self):

@@ -23,14 +23,13 @@ def ctrlc_handler(db: Database, sig, frame):
     msg = Mensagem(Mensagem.rmv_vizinho)
     msg = msg.serialize()
     for v in db.get_vizinhos():
-        s.sendto(msg, (v, RMV_VIZINHO_PORT)) #! Não espero por nenhum ACK
+        s.sendto(msg, (v, RMV_VIZINHO_PORT))
         print(f"Enviado pedido de remoção de vizinho para {v}")
     sys.exit(0)
 
 def thread_for_each_interface(endereço, porta, function, db: Database):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_socket.bind((endereço, porta))
-    # print(f"Serviço '{function.__name__}' pronto para receber conexões em {endereço}:{porta}.")
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
@@ -248,10 +247,9 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     msg = Mensagem.deserialize(msg)
 
     tipo = msg.get_tipo()
-    pedido_id = msg.get_id()
     cliente_origem = msg.get_origem()
     from_node = addr[0]
-    dados = msg.get_dados() #{'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
+    dados = msg.get_dados() # {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
     video = dados['video']
     ip_destino = dados['destino']
 
@@ -267,30 +265,75 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
             destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
             start_video_msg = Mensagem(Mensagem.start_video, dados=dados) 
             str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            str_sckt.settimeout(5)
+            # str_sckt.settimeout(5) #* Passa para dentro da função relay_video 
             print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {destino_vizinho}")
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
-            db.add_streaming(video, addr) #! Ter atenção que pode haver um curto espaço temporal em que é dito que há streaming de um determinado vídeo mas ainda não ter começado (mt improvavel, mas...)
+            db.add_streaming(video, addr)
             relay_video(str_sckt, video, destino_vizinho, db)
 
     else:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER START_VIDEOS!!!!!\n\n")
 
-def relay_video(str_sckt, video, server: str, db: Database):
+def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
+    """ Função que recebe um determinado vídeo e reencaminha o vídeo para os cliente que o pedem.
+        Ela gere a lógica de parar a stream quando não existem mais clientes a querer ver o vídeo e também de arranjar uma nova rota caso o fornecedor do vídeo falhe.(AINDA N IMPLEMENTADO)"""
     print(f"START_VIDEO: Starting relay_video for video '{video}'")
+    str_sckt.settimeout(1) # Timeout de 1 segundo, para verificar se o proveniente está vivo
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
             packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer aqui aquela função que abstrai a recepção de packets/frames em que usa o serviço ALIVE para o tratamento de erros/falhas.
+            # packet, _ = recvfrom_with_timeout(str_sckt, fornecedor, video, db) #* Nova maneira futura
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
             break # pára a stream
         
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
-    str_sckt.sendto(stop_video_msg, (server, V_STOP_PORT))
+    str_sckt.sendto(stop_video_msg, (fornecedor, V_STOP_PORT))
     str_sckt.close() 
     print(f"START_VIDEO: Streaming de '{video}' terminada")
+
+#! UNTESTED - TALVEZ DÊ PARA MODULARIZAR MELHOR A COISA
+def recvfrom_with_timeout(sckt, ip_fornecedor:str, video:str, db: Database): # Mudar nome da função
+    """ Abstrai logica de recepção de frames/packets para o relay_video e a sua forma de lidar com erros/falhas"""
+    try:
+        packet, addr = sckt.recvfrom(20480)
+    except socket.timeout:
+        if not db.is_transmitting_video(ip_fornecedor):
+            print(f"START_VIDEO: {ip_fornecedor} deixou de estar ativo para fornecer o video '{video}'")
+            print(f"START_VIDEO: A procurar um novo fornecedor para o vídeo '{video}'")
+            msg = Mensagem(Mensagem.check_video, dados=video, origem=sckt.getsockname()[0]) 
+            
+            # Broadcast para os vizinhos de CHECK_VIDEO
+            for vizinho in db.get_vizinhos():
+                vizinho = (vizinho,V_CHECK_PORT)
+                sckt.sendto(msg, vizinho) 
+            
+            #> Recepção das respostas dos vizinhos
+            sckt.settimeout(4)
+            try:
+                resp_vizinho, addr_vizinho = sckt.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
+            except socket.timeout:
+                print(f"CHECK_VIDEO: No answers from {db.get_vizinhos()} about '{video}'")
+                return None, None #! Pensar melhor neste caso
+            resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
+            nodo_fornecedor = resp_vizinho.get_origem()
+            ip_vizinho_fornecedor = addr_vizinho[0]
+            db.add_route(nodo_fornecedor, ip_vizinho_fornecedor)
+            print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {ip_vizinho_fornecedor}, original do {nodo_fornecedor}")
+
+            # destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
+            start_video_msg = Mensagem(Mensagem.start_video, dados={'video': video, 'destino': nodo_fornecedor}) 
+            sckt.settimeout(1) 
+            print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {ip_vizinho_fornecedor}")
+            sckt.sendto(start_video_msg.serialize(), (ip_vizinho_fornecedor, V_START_PORT))
+            db.add_streaming(video, addr)
+            db.add_streaming_from(addr_vizinho, video)
+
+            packet, addr = sckt.recvfrom(20480)
+
+    return packet, addr
 
 def svc_start_video(db: Database):
     service_name = "svc_start_video"
