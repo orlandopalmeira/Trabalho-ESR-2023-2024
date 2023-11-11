@@ -44,27 +44,26 @@ def thread_for_each_interface(endereço, porta, function, db: Database):
 ##################################################################################################################
 #* Serviço de arranque que notifica vizinhos da sua inicialização
 
-def handle_notify_vizinhos(vizinho: tuple, cur_retries = 0, sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)):
-    # sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def handle_notify_vizinhos(vizinho: tuple, sckt, cur_retries = 0):
     MAX_RETRIES = 2
-    sckt.settimeout(2)
     msg = Mensagem(Mensagem.add_vizinho).serialize()
     sckt.sendto(msg, vizinho)
     try:
-        resp, _ = sckt.recvfrom(1024)
+        resp, _ = sckt.recvfrom(2048)
         resp = Mensagem.deserialize(resp)
         if resp.get_tipo() == Mensagem.add_vizinho:
             print(f"Vizinho {vizinho[0]} notificado com sucesso.")
         else:
             print(f"Vizinho {vizinho[0]} NÃO respondeu como esperado!!!")
+        sckt.close()
     except socket.timeout:
-        print("Timeout DEBUG")
+        print(f"Timeout {vizinho[0]} DEBUG")
         cur_retries += 1
         if cur_retries < MAX_RETRIES:
-            handle_notify_vizinhos(vizinho, cur_retries, sckt)
+            handle_notify_vizinhos(vizinho, sckt, cur_retries=cur_retries)
         else:
             print(f"Não consegui notificar {vizinho[0]}")
-    sckt.close()
+            sckt.close()
 
 
 def svc_notify_vizinhos(db: Database):
@@ -74,7 +73,9 @@ def svc_notify_vizinhos(db: Database):
     threads = [] #! Caso se queira esperar por todas as threads
 
     for v in vizinhos_addr:
-        t=threading.Thread(target=handle_notify_vizinhos, args=(v,))
+        sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sckt.settimeout(2)
+        t=threading.Thread(target=handle_notify_vizinhos, args=(v,sckt))
         t.start()
         threads.append(t)
         # break #! DEBUG
