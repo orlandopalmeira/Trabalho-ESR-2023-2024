@@ -7,16 +7,24 @@ from database import Database
 from mensagem import Mensagem
 from utils import get_ips
 from queue import Queue
+from functools import partial
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
 V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
 ADD_VIZINHO_PORT= 3005 #> Porta de atendimento do serviço add_vizinho
+RMV_VIZINHO_PORT= 3006 #> Porta de atendimento do serviço rmv_vizinho
 
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
-def ctrlc_handler(sig, frame):
+def ctrlc_handler(db: Database, sig, frame):
     print("A encerrar o servidor e as threads...")
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    msg = Mensagem(Mensagem.rmv_vizinho)
+    msg = msg.serialize()
+    for v in db.get_vizinhos():
+        s.sendto(msg, (v, RMV_VIZINHO_PORT)) #! Não espero por nenhum ACK
+        print(f"Enviado pedido de remoção de vizinho para {v}")
     sys.exit(0)
 
 def thread_for_each_interface(endereço, porta, function, db: Database):
@@ -34,13 +42,54 @@ def thread_for_each_interface(endereço, porta, function, db: Database):
     server_socket.close()
 
 ##################################################################################################################
-#! Serviço extra ainda inutilizado - Serviço de ADD_VIZINHOS
+#* Serviço de arranque que notifica vizinhos da sua inicialização
+
+def handle_notify_vizinhos(vizinho: tuple, cur_retries = 0, sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)):
+    # sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    MAX_RETRIES = 2
+    sckt.settimeout(2)
+    msg = Mensagem(Mensagem.add_vizinho).serialize()
+    sckt.sendto(msg, vizinho)
+    try:
+        resp, _ = sckt.recvfrom(1024)
+        resp = Mensagem.deserialize(resp)
+        if resp.get_tipo() == Mensagem.add_vizinho:
+            print(f"Vizinho {vizinho[0]} notificado com sucesso.")
+        else:
+            print(f"Vizinho {vizinho[0]} NÃO respondeu como esperado!!!")
+    except socket.timeout:
+        print("Timeout DEBUG")
+        cur_retries += 1
+        if cur_retries < MAX_RETRIES:
+            handle_notify_vizinhos(vizinho, cur_retries, sckt)
+        else:
+            print(f"Não consegui notificar {vizinho[0]}")
+    sckt.close()
+
+
+def svc_notify_vizinhos(db: Database):
+    vizinhos = db.get_vizinhos()
+    vizinhos_addr = [(vizinho, ADD_VIZINHO_PORT) for vizinho in vizinhos]
+    print(f"A notificar os vizinhos {vizinhos}.")
+    threads = [] #! Caso se queira esperar por todas as threads
+
+    for v in vizinhos_addr:
+        t=threading.Thread(target=handle_notify_vizinhos, args=(v,))
+        t.start()
+        threads.append(t)
+        # break #! DEBUG
+
+    for t in threads:
+        t.join()
+
+##################################################################################################################
+#* Serviço de ADD_VIZINHOS
 # Função para lidar com o serviço svc_add_vizinhos
 def handle_add_vizinhos(msg, socket, addr:tuple, db: Database):
     print(f"ADD_VIZINHO: recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
     if not msg.get_tipo() == Mensagem.add_vizinho:
-        print(f"ADD_VIZINHO: pedido de {addr[0]} não é do tipo new_vizinho")
+        print(f"ADD_VIZINHO: pedido de {addr[0]} não é do tipo ADD_VIZINHO")
         return
     
     db.add_vizinho(addr[0])
@@ -71,38 +120,28 @@ def svc_add_vizinhos(db: Database):
     server_socket.close()
 
 ##################################################################################################################
-#! Serviço de REMOVE_VIZINHOS - INACABADO
+#* Serviço de REMOVE_VIZINHOS 
 # Função para lidar com o serviço svc_add_vizinhos
-def handle_remove_vizinhos(dados, socket, addr:tuple, db: Database):
-
+def handle_remove_vizinhos(msg, addr:tuple, db: Database):
     print(f"REMOVE_VIZINHO: recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
-    if not msg.get_tipo() == Mensagem.add_vizinho: # mensagem será de tipo diferente
-        print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo new_vizinho")
+    if not msg.get_tipo() == Mensagem.rmv_vizinho: # mensagem será de tipo diferente
+        print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo RMV_VIZINHO")
         return
     
     r = db.remove_vizinho(addr[0])
-
-    msg.set_dados("ACK")
-    response = msg.serialize()
-    socket.sendto(response, addr)
-
-    print(f"REMOVE_VIZINHO: {addr[0]} adicionado aos vizinhos com sucesso.")
-    # ----------
-    print(f"Conversação estabelecida com {addr}")
-    
-    response = db.remove_vizinho(addr[0])
-    print(f"Removendo vizinho...{addr[0]}")
-
-    socket.sendto(response.encode('utf-8'), addr)
-    
-    print(f"Conversação encerrada com {addr}")
+    if r == 1:
+        print(f"REMOVE_VIZINHO: {addr[0]} NÃO EXISTIA na lista de vizinhos!!!!!")
+    else:
+        print(f"REMOVE_VIZINHO: {addr[0]} removido dos vizinhos com sucesso.")
+        #! Talvez tbm tenha remover o streaming, caso haja algum streaming a ser enviado para ele, ou passar isso para a responsabilidade do rmv_vizinho
 
 # Função que lida com o serviço de adicionar vizinhos
-def svc_remove_vizinhos(port:int, db: Database):
+def svc_remove_vizinhos(db: Database):
     service_name = 'svc_remove_vizinhos'
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     endereco = '0.0.0.0' # Listen on all interfaces
+    port = RMV_VIZINHO_PORT
     addr = (endereco, port)
     server_socket.bind(addr)
 
@@ -111,49 +150,13 @@ def svc_remove_vizinhos(port:int, db: Database):
     while True:
         try:
             dados, addr = server_socket.recvfrom(1024)
-            threading.Thread(target=handle_remove_vizinhos, args=(dados, server_socket, addr, db)).start()
+            threading.Thread(target=handle_remove_vizinhos, args=(dados, addr, db)).start()
         except Exception as e:
             print(f"Erro svc_remove_vizinhos: {e}")
             break
     server_socket.close()
 
 ##################################################################################################################
-#* Serviço que notifica vizinhos da sua inicialização
-
-def handle_new_vizinho(vizinho: tuple, cur_retries = 0, sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)):
-    # sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    MAX_RETRIES = 2
-    sckt.settimeout(2)
-    msg = Mensagem(Mensagem.add_vizinho)
-    sckt.sendto(msg.serialize(), vizinho)
-    try:
-        resp, _ = sckt.recvfrom(1024)
-        resp = Mensagem.deserialize(resp)
-        if resp.get_tipo() == Mensagem.resp_new_vizinho:
-            print(f"Vizinho {vizinho[0]} notificado com sucesso.")
-        else:
-            print(f"Vizinho {vizinho[0]} não respondeu como esperado.")
-    except socket.timeout:
-        cur_retries += 1
-        if cur_retries < MAX_RETRIES:
-            handle_new_vizinho(vizinho, cur_retries, sckt)
-        else:
-            print(f"Não consegui notificar {vizinho[0]}")
-    sckt.close()
-
-
-
-def svc_notify_vizinhos(db: Database):
-    
-    vizinhos = db.get_vizinhos()
-    vizinhos_addr = [(vizinho, ADD_VIZINHO_PORT) for vizinho in vizinhos]
-    print(f"A notificar vizinhos da minha existência.")
-
-    for v in vizinhos_addr:
-        threading.Thread(target=handle_new_vizinho, args=(v,)).start()
-
-##################################################################################################################
-
 #* Serviço que mostra a base de dados
 # Função que lida com o serviço de mostrar vizinhos quando é premido ENTER
 def svc_show_db(db: Database):
@@ -334,21 +337,27 @@ def svc_stop_video(db: Database):
 
 def main():
 
-    # Regista o sinal para encerrar o servidor no momento do CTRL+C
-    signal.signal(signal.SIGINT, ctrlc_handler)
-
     # Cria a base de dados
     db = Database()
+
+    # Regista o sinal para encerrar o servidor no momento do CTRL+C
+    signal.signal(signal.SIGINT, partial(ctrlc_handler, db))
+    
     if len(sys.argv) < 2:
         print(f"Uso: python3 {sys.argv[0]} <config_file.json>")
         sys.exit(1)
     db.read_config_file(sys.argv[1])
+
+    # Inicia o serviço de notificação de vizinhos
+    svc_notify_vizinhos(db)
 
     # Inicia os serviços em threads separadas
     svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
     svc2_thread = threading.Thread(target=svc_start_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc4_thread = threading.Thread(target=svc_clear_pedidos_resp, args=(db,))
+    svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
+    svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
     svc51_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads=[   
@@ -356,8 +365,8 @@ def main():
         svc2_thread,
         svc3_thread,
         svc4_thread,
-        # svc5_thread,
-        # svc6_thread,
+        svc5_thread,
+        svc6_thread,
         svc51_thread,
     ]
 
