@@ -295,7 +295,7 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
     str_sckt.close() 
     print(f"START_VIDEO: Streaming de '{video}' terminada")
 
-#! UNTESTED - TALVEZ DÊ PARA MODULARIZAR MELHOR A COISA
+#! UNTESTED - TALVEZ DÊ PARA MODULARIZAR MELHOR A COISA - Adicionalmente, implementar lógica de retries
 def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database):
     """ Abstrai logica de recepção de frames/packets para o relay_video e a sua forma de lidar com erros/falhas"""
     try:
