@@ -101,10 +101,12 @@ class Database:
     def remove_streaming_for_ip(self, ip:str):
         """Remove todas as entradas do endereço 'ip' da lista de endereços a enviar videos"""
         with self.streamingLock:
+            new_streaming = dict()
             for video in self.streaming:
-                self.streaming[video] = [x for x in self.streaming[video] if x[0] != ip]
-                if len(self.streaming[video]) == 0:
-                    del self.streaming[video]
+                new_streaming[video] = [x for x in self.streaming[video] if x[0] != ip]
+                if len(new_streaming[video]) == 0:
+                    del new_streaming[video]
+            self.streaming = new_streaming
 
 #####################? Merece revisão
 #! Aplicar o add_streaming_from e remove_streaming_from em conjunto com o add_streaming e remove_streaming
@@ -143,10 +145,12 @@ class Database:
 #?###################
 
     def remove_route_for_ip(self, ip:str):
+        new_rt = dict()
         with self.routingTableLock:
             for ip_destino in self.routingTable:
-                if self.routingTable[ip_destino] == ip:
-                    del self.routingTable[ip_destino]
+                if self.routingTable[ip_destino] != ip:
+                    new_rt[ip_destino] = self.routingTable[ip_destino] 
+            self.routingTable = new_rt
 
     def add_route(self, ip_destino:str, ip_vizinho:str):
         with self.routingTableLock:
