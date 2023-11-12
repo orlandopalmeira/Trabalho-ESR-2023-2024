@@ -269,7 +269,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
         print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {destino_vizinho}")
         str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
         db.add_streaming(video, addr) #> Adiciona o par video:addr de envio
-        db.add_streaming_from(destino_vizinho, video) #> Adiciona o par fornecedor:video 
+        db.add_streaming_from(destino_vizinho, video) #> Adiciona o par ip_fornecedor:video 
         relay_video(str_sckt, video, destino_vizinho, db)
 
 def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
@@ -305,13 +305,15 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
         if not db.is_transmitting_video(ip_fornecedor):
             print(f"START_VIDEO: {ip_fornecedor} deixou de estar ativo para fornecer o video '{video}'")
             print(f"START_VIDEO: A procurar um novo fornecedor para o vídeo '{video}'")
-            rearranje_fornecedor(sckt, video, db)
+            new_fornecedor = rearranje_fornecedor(sckt, video, db)
+            # packet, addr = sckt.recvfrom(20480)
+            packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
 
-            packet, addr = sckt.recvfrom(20480)
         else: #> O fornecedor ainda está ativo, mas não está a enviar o vídeo
             if retries > 2:
                 print(f"START_VIDEO: {ip_fornecedor} ultrapassou o limite de falhas de fornecimento do video '{video}'")
-                rearranje_fornecedor(sckt, video, db)
+                new_fornecedor = rearranje_fornecedor(sckt, video, db)
+                packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
                 
             else:
                 print(f"START_VIDEO: {ip_fornecedor} deu um timeout no envio do vídeo '{video}'. Retries: {retries+1}")
@@ -319,8 +321,8 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
 
     return packet, addr
 
-def rearranje_fornecedor(sckt, video:str, db: Database):
-    """ Função que procura um novo fornecedor para o vídeo especificado"""
+def rearranje_fornecedor(sckt, video:str, db: Database) -> str:
+    """ Função que procura um novo fornecedor para o vídeo especificado, retornando o ip do novo fornecedor"""
     msg = Mensagem(Mensagem.check_video, dados=video, origem=sckt.getsockname()[0]) 
             
     # Broadcast para os vizinhos de CHECK_VIDEO
@@ -331,13 +333,13 @@ def rearranje_fornecedor(sckt, video:str, db: Database):
     #> Recepção das respostas dos vizinhos
     sckt.settimeout(3)
     try:
-        resp_vizinho, addr_vizinho = sckt.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
+        resp_vizinho, addr_vizinho_fornecedor = sckt.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
     except socket.timeout:
         print(f"CHECK_VIDEO IN REARRANJE_FORNECEDOR: No answers from {db.get_vizinhos()} about '{video}'")
         return None, None #! Pensar melhor neste caso
     resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
     nodo_fornecedor = resp_vizinho.get_origem()
-    ip_vizinho_fornecedor = addr_vizinho[0]
+    ip_vizinho_fornecedor = addr_vizinho_fornecedor[0]
     db.add_route(nodo_fornecedor, ip_vizinho_fornecedor)
     print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {ip_vizinho_fornecedor}, original do {nodo_fornecedor}")
 
@@ -346,7 +348,9 @@ def rearranje_fornecedor(sckt, video:str, db: Database):
     print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {ip_vizinho_fornecedor}")
     sckt.sendto(start_video_msg.serialize(), (ip_vizinho_fornecedor, V_START_PORT))
     # db.add_streaming(video, addr) #> Não precisa do add_streaming, pois o cliente continua a querer ver o vídeo e nunca foi removida essa info
-    db.add_streaming_from(addr_vizinho, video)
+    db.add_streaming_from(ip_vizinho_fornecedor, video)
+
+    return ip_vizinho_fornecedor
 
 
 def svc_start_video(db: Database):
