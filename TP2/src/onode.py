@@ -268,7 +268,8 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
             # str_sckt.settimeout(5) #* Passa para dentro da função relay_video 
             print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {destino_vizinho}")
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
-            db.add_streaming(video, addr)
+            db.add_streaming(video, addr) # Adiciona o par video:addr de envio
+            db.add_streaming_from(destino_vizinho, video) # Adiciona o par fornecedor:video 
             relay_video(str_sckt, video, destino_vizinho, db)
 
     else:
@@ -282,8 +283,8 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
-            packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer aqui aquela função que abstrai a recepção de packets/frames em que usa o serviço ALIVE para o tratamento de erros/falhas.
-            # packet, _ = recvfrom_with_timeout(str_sckt, fornecedor, video, db) #* Nova maneira futura
+            # packet, _ = str_sckt.recvfrom(20480) # Maneira antiga sem rearranjo de conexão
+            packet, _ = receive_video_frame(str_sckt, fornecedor, video, db)
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
@@ -295,7 +296,7 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
     print(f"START_VIDEO: Streaming de '{video}' terminada")
 
 #! UNTESTED - TALVEZ DÊ PARA MODULARIZAR MELHOR A COISA
-def recvfrom_with_timeout(sckt, ip_fornecedor:str, video:str, db: Database): # Mudar nome da função
+def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database):
     """ Abstrai logica de recepção de frames/packets para o relay_video e a sua forma de lidar com erros/falhas"""
     try:
         packet, addr = sckt.recvfrom(20480)
@@ -328,7 +329,7 @@ def recvfrom_with_timeout(sckt, ip_fornecedor:str, video:str, db: Database): # M
             sckt.settimeout(1) 
             print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {ip_vizinho_fornecedor}")
             sckt.sendto(start_video_msg.serialize(), (ip_vizinho_fornecedor, V_START_PORT))
-            db.add_streaming(video, addr)
+            # db.add_streaming(video, addr)
             db.add_streaming_from(addr_vizinho, video)
 
             packet, addr = sckt.recvfrom(20480)

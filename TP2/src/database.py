@@ -80,6 +80,7 @@ class Database:
         return tuples
             
     def add_streaming(self, video:str, addr:tuple):
+        """Adiciona o endereço 'addr' à lista de endereços a enviar o streaming do video 'video'"""
         with self.streamingLock:
             if video in self.streaming:
                 self.streaming[video].append(addr)
@@ -105,12 +106,13 @@ class Database:
 
 #####################? Merece revisão
 #! Aplicar o add_streaming_from e remove_streaming_from em conjunto com o add_streaming e remove_streaming
-    def add_streaming_from(self, ip:str, video:str):
+    def add_streaming_from(self, ip_fornecedor:str, video:str):
+        """Adiciona o video 'video' à lista de videos que estou a receber do ip 'ip_fornecedor'"""
         with self.streaming_fromLock:
-            if ip in self.streaming_from:
-                self.streaming_from[ip].append(video)
+            if ip_fornecedor in self.streaming_from:
+                self.streaming_from[ip_fornecedor].append(video)
             else:
-                self.streaming_from[ip] = [video]
+                self.streaming_from[ip_fornecedor] = [video]
 
     def remove_streaming_from(self, ip:str, video:str):
         with self.streaming_fromLock:
