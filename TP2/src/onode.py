@@ -162,7 +162,7 @@ def svc_remove_vizinhos(db: Database):
 def svc_show_db(db: Database):
     service_name = 'svc_show_db'
     interval = 15
-    print(f"Serviço '{service_name}' pronto para mostrar a dbde {interval} em {interval} segundos. (DEBUG)")
+    print(f"Serviço '{service_name}' pronto para mostrar a db de {interval} em {interval} segundos. (DEBUG)")
     while True:
         print(db)
         time.sleep(interval)
@@ -183,7 +183,6 @@ def svc_clear_pedidos_resp(db: Database):
 #* Serviço de CHECK_VIDEO
 def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
     msg = Mensagem.deserialize(data)
-    db.add_route(msg.get_origem(), pedinte[0]) 
     tipo = msg.get_tipo()
     if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
         if db.foi_respondido_msg(msg):
@@ -191,7 +190,7 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
             return
         db.add_pedido_respondido_msg(msg) #> regista o pedido para não responder novamente no futuro
         video = msg.get_dados()
-        print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{video}', original do {msg.get_origem()}")
+        print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{video}'{f', original do {msg.get_origem()}' if msg.get_origem() else ''}")
         if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
             print(f"CHECK_VIDEO: tenho o vídeo '{video}'")
             response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
@@ -213,7 +212,7 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
                 resp_vizinho, addr_vizinho = vizinhos_socket.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
                 resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
                 db.add_route(resp_vizinho.get_origem(),addr_vizinho[0])
-                print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {addr_vizinho[0]}, original do {resp_vizinho.get_origem()}")
+                print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {addr_vizinho[0]}{f', original do {msg.get_origem()}' if msg.get_origem() else ''}")
                 if resp_vizinho.get_dados(): #> o vizinho tem o vídeo
                     sckt.sendto(resp_vizinho.serialize(), pedinte) #> envia a resposta do vizinho com as informações necessárias
                 else:
@@ -248,7 +247,6 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
 
     tipo = msg.get_tipo()
     cliente_origem = msg.get_origem()
-    from_node = addr[0]
     dados = msg.get_dados() # {'destino': ip de quem tem o vídeo, 'video': nome do vídeo}
     video = dados['video']
     ip_destino = dados['destino']
@@ -257,11 +255,11 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER START_VIDEOS!!!!!\n\n")
         return 
 
-    print(f"START_VIDEO: pedido por {addr[0]}, video '{video}', original do {cliente_origem}")
+    print(f"START_VIDEO: pedido por {addr[0]}, video '{video}'{f', original do {cliente_origem}' if cliente_origem else ''}") 
     if db.is_streaming_video(video): #> Já está a transmitir o vídeo
         print(f"START_VIDEO: O vídeo '{video}' já está a ser transmitido")
         db.add_streaming(video, addr) #> Regista o cliente/nodo que está a receber o vídeo
-        print(f"START_VIDEO: {addr[0]} adicionado à lista de transmissão do vídeo '{video}', para o Cliente {cliente_origem}")
+        print(f"START_VIDEO: {addr[0]} adicionado à lista de transmissão do vídeo '{video}'{f', para o Cliente {cliente_origem}' if cliente_origem else ''}")
         
     else: #> Ainda não está a transmitir o vídeo
         #! Talvez ter atenção algum caso em que não haja vizinho para o destino especificado (apesar de ser teoricamente impossível)
@@ -289,7 +287,7 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
             db.remove_streaming_from(fornecedor, video)
-            #! Nao se tem que fazer remove_streaming???
+            # Não tem de se fazer db.remove_streaming, pois isso já foi feito no handle_stop_video, que pode causar a paragem deste ciclo, se remover todos os destinos que querem o video que está a receber.
             break # pára a stream
         
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
@@ -299,7 +297,8 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
 
 
 def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retries=0):
-    """ Abstrai logica de recepção de frames/packets para o relay_video e a sua forma de lidar com erros/falhas"""
+    """ Abstrai logica de recepção de frames/packets para o relay_video e a sua forma de lidar com erros/falhas
+        Pode retornar um addr, diferente do fornecedor original, sendo necessário atualizar o fornecedor do vídeo"""
     try:
         packet, addr = sckt.recvfrom(20480)
     except socket.timeout:
@@ -342,8 +341,7 @@ def rearranje_fornecedor(sckt, video:str, db: Database):
     db.add_route(nodo_fornecedor, ip_vizinho_fornecedor)
     print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {ip_vizinho_fornecedor}, original do {nodo_fornecedor}")
 
-    # destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
-    start_video_msg = Mensagem(Mensagem.start_video, dados={'video': video, 'destino': nodo_fornecedor}) 
+    start_video_msg = Mensagem(Mensagem.start_video, dados={'video': video, 'destino': nodo_fornecedor})
     sckt.settimeout(1) 
     print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {ip_vizinho_fornecedor}")
     sckt.sendto(start_video_msg.serialize(), (ip_vizinho_fornecedor, V_START_PORT))

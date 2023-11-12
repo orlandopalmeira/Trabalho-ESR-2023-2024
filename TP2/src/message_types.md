@@ -32,7 +32,7 @@ Mensagem enviada em broadcast para todos os nodos, para encontrar o video requer
 {
     "tipo": "CHECK_VIDEO",
     "dados": "movie.Mjpeg", // nome do vídeo
-    "origem": "10.0.0.1", // IP do nodo original que enviou a mensagem (para efeitos de identificação de mensagens repetidas de broadcast)
+    "origem": "10.0.0.1", // (OPCIONAL) IP do nodo original que enviou a mensagem (para efeitos de identificação de mensagens repetidas de broadcast)
     "timestamp": None
 }
 ```
@@ -61,7 +61,7 @@ Mensagem enviada para um **ip_destino** que contém o **video**, previamente det
         "destino": "10.0.3.3", // IP do nodo com o vídeo
         "video": "movie.Mjpeg" // nome do vídeo
     },
-    "origem": "10.0.0.1", // IP do nodo original que enviou a mensagem
+    "origem": "10.0.0.1", // (OPCIONAL) IP do nodo original que enviou a mensagem
     "timestamp": None
 }
 ```

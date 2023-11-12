@@ -41,21 +41,18 @@ def thread_for_each_interface(endereço, porta, function, db: Database_RP):
 def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     msg = Mensagem.deserialize(msg)
     tipo = msg.get_tipo()
-    pedido_id = msg.get_id()
     cliente_origem = msg.get_origem()
     from_node = addr[0]
     video = msg.get_dados()
 
     if tipo == Mensagem.check_video:
-        print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}', originário do cliente {cliente_origem}")
+        print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}'{f', original do {cliente_origem}' if cliente_origem else ''}")
         #! Talvez não seja necessário verificar, pq n ha stress em receber dois pedidos iguais (talvez)
         if db.foi_respondido_msg(msg):
             print(f"CHECK_VIDEO: Pedido do vizinho {addr[0]} já foi respondido. Pedido ignorado.")
             return
         
         # Gestão de pedidos repetidos
-        db.add_route(cliente_origem, from_node)
-        print(f"CHECK_VIDEO: Adicionada entrada {cliente_origem}:{from_node} à routing table")
         db.add_pedido_respondido_msg(msg)
 
         # Resposta ao pedido
@@ -94,7 +91,6 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
 
     print(f"START_VIDEO recebido de {addr[0]} pedindo o video '{video}'")
     if db.servers_have_video(video): #> O RP verifica a existência do vídeo na overlay
-        # print(f"START_VIDEO: O vídeo '{video}' existe na rede overlay.")
         if db.is_streaming_video(video): #> O RP verifica se o vídeo já está a ser transmitido
             print(f"START_VIDEO: O vídeo '{video}' já está a ser transmitido")
             db.add_streaming(video, addr) #> Regista o cliente/nodo como um "visualizador" do vídeo

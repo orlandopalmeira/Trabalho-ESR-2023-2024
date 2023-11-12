@@ -11,7 +11,7 @@ from utils import get_ips
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
-V_STOP_PORT = 3003 #> Porta de atendimento do serviço stop_videos
+V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
 
 if __name__ == "__main__":
 	root = Tk()
