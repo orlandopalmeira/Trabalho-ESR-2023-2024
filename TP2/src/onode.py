@@ -311,6 +311,7 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
             new_fornecedor = rearranje_fornecedor(sckt, video, db)
             # packet, addr = sckt.recvfrom(20480)
             packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
+            print(f"START_VIDEO: Novo fornecedor para o vídeo '{video}' encontrado: {new_fornecedor}")
 
         else: #> O fornecedor ainda está ativo, mas não está a enviar o vídeo
             if retries > 2:
@@ -318,6 +319,7 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
                 db.remove_streaming_from(ip_fornecedor, video) # Aqui é necessário remover do streaming_from pois n recebeu nenhum RMV_VIZINHO, mas vai-se rearranjar de fornecedor.
                 new_fornecedor = rearranje_fornecedor(sckt, video, db)
                 packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
+                print(f"START_VIDEO: Novo fornecedor para o vídeo '{video}' encontrado: {new_fornecedor}")
                 
             else:
                 print(f"START_VIDEO: {ip_fornecedor} deu um timeout no envio do vídeo '{video}'. Retries: {retries+1}")
