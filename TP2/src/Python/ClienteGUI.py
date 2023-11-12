@@ -94,7 +94,7 @@ class ClienteGUI:
 					currFrameNbr = rtpPacket.seqNum()
 					print("Current Seq Num: " + str(currFrameNbr))
 										
-					if currFrameNbr > self.frameNbr: # Discard the late packet
+					if currFrameNbr > self.frameNbr or currFrameNbr < self.frameNbr - 100: # Discard the late packet
 						self.frameNbr = currFrameNbr
 						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
 			except:
