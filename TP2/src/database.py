@@ -80,7 +80,7 @@ class Database:
         return tuples
             
     def add_streaming(self, video:str, addr:tuple):
-        """Adiciona o endereço 'addr' à lista de endereços a enviar o streaming do video 'video'"""
+        """Adiciona o endereço 'addr' à lista de endereços a enviar o video 'video'"""
         with self.streamingLock:
             if video in self.streaming:
                 self.streaming[video].append(addr)
@@ -88,6 +88,7 @@ class Database:
                 self.streaming[video] = [addr]
 
     def remove_streaming(self, video:str, addr:tuple):
+        """Remove o endereço 'addr' da lista de endereços a enviar o video 'video'"""
         with self.streamingLock:
             try:
                 self.streaming[video] = [x for x in self.streaming[video] if x != addr] #> Remove o endereço addr da lista, se existir
@@ -98,6 +99,7 @@ class Database:
                 print("Streaming não existia")
 
     def remove_streaming_for_ip(self, ip:str):
+        """Remove todas as entradas do endereço 'ip' da lista de endereços a enviar videos"""
         with self.streamingLock:
             for video in self.streaming:
                 self.streaming[video] = [x for x in self.streaming[video] if x[0] != ip]
@@ -114,20 +116,22 @@ class Database:
             else:
                 self.streaming_from[ip_fornecedor] = [video]
 
-    def remove_streaming_from(self, ip:str, video:str):
+    def remove_streaming_from(self, ip_fornecedor:str, video:str):
+        """Remove o video 'video' da lista de videos que estou a receber do ip 'ip_fornecedor'"""
         with self.streaming_fromLock:
             try:
-                self.streaming_from[ip].remove(video)
-                if len(self.streaming_from[ip]) == 0:
-                    del self.streaming_from[ip]
-                print(f"Streaming_from de {ip} do video '{video}' removido com sucesso")
+                self.streaming_from[ip_fornecedor].remove(video)
+                if len(self.streaming_from[ip_fornecedor]) == 0:
+                    del self.streaming_from[ip_fornecedor]
+                print(f"Streaming_from de {ip_fornecedor} do video '{video}' removido com sucesso")
             except KeyError:
-                print(f"Streaming_from de {ip} do video '{video}'")
+                print(f"Streaming_from de {ip_fornecedor} do video '{video}'")
 
-    def remove_ip_streaming_from(self, ip:str):
+    def remove_ip_streaming_from(self, ip_fornecedor:str):
+        """Remove todos os videos da lista que estou a receber do ip 'ip_fornecedor'"""
         with self.streaming_fromLock:
             try:
-                del self.streaming_from[ip]
+                del self.streaming_from[ip_fornecedor]
             except KeyError:
                 pass
 

@@ -265,7 +265,6 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
             destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
             start_video_msg = Mensagem(Mensagem.start_video, dados=dados) 
             str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # str_sckt.settimeout(5) #* Passa para dentro da função relay_video 
             print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {destino_vizinho}")
             str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
             db.add_streaming(video, addr) # Adiciona o par video:addr de envio
@@ -288,6 +287,7 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
+            db.remove_streaming_from(fornecedor, video)
             break # pára a stream
         
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
