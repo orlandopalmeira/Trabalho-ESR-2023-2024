@@ -280,8 +280,11 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
-            #? packet, _ = str_sckt.recvfrom(20480) # Maneira antiga sem rearranjo de conexão
-            packet, addr = receive_video_frame(str_sckt, fornecedor, video, db)
+            try:
+                packet, addr = receive_video_frame(str_sckt, fornecedor, video, db)
+            except: # Caso não haja nenhum fornecedor a fornecer o vídeo
+                print(f"Não foram encontrados fornecedores para o video '{video}' após um rearranjo!!!")
+                break
             fornecedor = addr[0] #> Atualiza o fornecedor do vídeo, para o caso de ter mudado
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
@@ -312,6 +315,7 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
         else: #> O fornecedor ainda está ativo, mas não está a enviar o vídeo
             if retries > 2:
                 print(f"START_VIDEO: {ip_fornecedor} ultrapassou o limite de falhas de fornecimento do video '{video}'")
+                db.remove_streaming_from(ip_fornecedor, video) # Aqui é necessário remover do streaming_from pois n recebeu nenhum RMV_VIZINHO, mas vai-se rearranjar de fornecedor.
                 new_fornecedor = rearranje_fornecedor(sckt, video, db)
                 packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
                 
@@ -336,7 +340,7 @@ def rearranje_fornecedor(sckt, video:str, db: Database) -> str:
         resp_vizinho, addr_vizinho_fornecedor = sckt.recvfrom(1024) #> vizinho responde a indicar quem tem o vídeo
     except socket.timeout:
         print(f"CHECK_VIDEO IN REARRANJE_FORNECEDOR: No answers from {db.get_vizinhos()} about '{video}'")
-        return None, None #! Pensar melhor neste caso
+        raise Exception("Video not available")
     resp_vizinho = Mensagem.deserialize(resp_vizinho) #> resposta do vizinho
     nodo_fornecedor = resp_vizinho.get_origem()
     ip_vizinho_fornecedor = addr_vizinho_fornecedor[0]
