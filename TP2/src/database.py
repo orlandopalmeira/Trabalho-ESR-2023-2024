@@ -220,7 +220,7 @@ class Database:
 
 
     def __str__(self):
-        with self.vizinhoslock, self.routingTableLock, self.pedidosRespondidosLock, self.streamingLock:
+        with self.vizinhoslock, self.routingTableLock, self.pedidosRespondidosLock, self.streamingLock, self.streaming_fromLock:
             pedidosRespondidos_str = [
                 {**pedido, 'ts': pedido['ts'].strftime('%Y-%m-%d %H:%M:%S')}
                 for pedido in self.pedidosRespondidos.copy()

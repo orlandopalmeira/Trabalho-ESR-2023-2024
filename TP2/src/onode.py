@@ -309,7 +309,7 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database):
             # Broadcast para os vizinhos de CHECK_VIDEO
             for vizinho in db.get_vizinhos():
                 vizinho = (vizinho,V_CHECK_PORT)
-                sckt.sendto(msg, vizinho) 
+                sckt.sendto(msg.serialize(), vizinho) 
             
             #> Recepção das respostas dos vizinhos
             sckt.settimeout(4)
