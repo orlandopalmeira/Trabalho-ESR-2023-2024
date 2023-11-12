@@ -286,10 +286,10 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
-            db.remove_streaming_from(fornecedor, video)
-            # Não tem de se fazer db.remove_streaming, pois isso já foi feito no handle_stop_video, que pode causar a paragem deste ciclo, se remover todos os destinos que querem o video que está a receber.
             break # pára a stream
-        
+    
+    db.remove_streaming_from(fornecedor, video)
+    # Não tem de se fazer db.remove_streaming, pois isso já foi feito no handle_stop_video, que pode causar a paragem deste ciclo, se remover todos os destinos que querem o video que está a receber.
     stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
     str_sckt.sendto(stop_video_msg, (fornecedor, V_STOP_PORT))
     str_sckt.close() 
