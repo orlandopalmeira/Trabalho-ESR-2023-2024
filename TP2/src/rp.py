@@ -6,7 +6,7 @@ import time
 import datetime
 from database_rp import Database_RP
 from mensagem import Mensagem
-from utils import get_ips
+from utils import get_ips, change_terminal_title
 from queue import Queue
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
@@ -355,7 +355,7 @@ def svc_show_db(db: Database_RP):
 
 
 def main():
-
+    change_terminal_title()
     db = Database_RP()
     if len(sys.argv) < 2:
         print(f"Uso: python3 {sys.argv[0]} <config_file.json>")

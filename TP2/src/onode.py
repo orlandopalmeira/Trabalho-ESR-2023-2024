@@ -5,7 +5,7 @@ import sys
 import time
 from database import Database
 from mensagem import Mensagem
-from utils import get_ips
+from utils import get_ips, change_terminal_title
 from queue import Queue
 from functools import partial
 
@@ -405,7 +405,7 @@ def svc_stop_video(db: Database):
         t.join()
 
 def main():
-
+    change_terminal_title()
     # Cria a base de dados
     db = Database()
 

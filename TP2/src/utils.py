@@ -1,4 +1,6 @@
 import subprocess
+import socket 
+import sys
 
 def get_ips():
     command = "ip -4 addr show | grep inet | awk '{print $2}' | cut -d'/' -f1"
@@ -12,3 +14,10 @@ def get_ips():
     ips = [ip for ip in lista if ip not in {'','127.0.0.1'}]
 
     return ips
+
+def hostname():
+    return socket.gethostname()
+
+def change_terminal_title():
+    sys.stdout.write(f"\033]0;{hostname()}\007")
+    sys.stdout.flush()

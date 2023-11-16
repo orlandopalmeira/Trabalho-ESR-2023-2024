@@ -7,6 +7,7 @@ from RtpPacket import RtpPacket
 
 from database_server import Database_Server
 from mensagem import Mensagem
+from utils import change_terminal_title
 import signal
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
@@ -222,7 +223,7 @@ def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
 #################################################################################################################
 
 def main():
-
+	change_terminal_title()
 	# Regista o sinal para encerrar o servidor no momento do CTRL+C
 	signal.signal(signal.SIGINT, ctrlc_handler)
 
