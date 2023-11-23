@@ -108,8 +108,6 @@ class Database:
                     del new_streaming[video]
             self.streaming = new_streaming
 
-#####################? Merece revisão
-#! Aplicar o add_streaming_from e remove_streaming_from em conjunto com o add_streaming e remove_streaming
     def add_streaming_from(self, ip_fornecedor:str, video:str):
         """Adiciona o video 'video' à lista de videos que estou a receber do ip 'ip_fornecedor'"""
         with self.streaming_fromLock:
@@ -166,7 +164,7 @@ class Database:
             
     def resolve_ip_to_vizinho(self, ip_destino:str):
         with self.routingTableLock:
-            return self.routingTable[ip_destino] #! TALVEZ Especificar melhor o que acontece quando n é encontrado o ip destino, apesar de ser praticamente impossivel
+            return self.routingTable[ip_destino]
             
     def get_routing_table(self):
         with self.routingTableLock:

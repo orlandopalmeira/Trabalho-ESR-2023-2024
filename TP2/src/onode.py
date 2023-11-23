@@ -20,7 +20,7 @@ RMV_VIZINHO_PORT= 3006 #> Porta de atendimento do serviço rmv_vizinho
 def ctrlc_handler(db: Database, sig, frame):
     print("A encerrar o servidor e as threads...")
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    msg = Mensagem(Mensagem.rmv_vizinho)
+    msg = Mensagem(Mensagem.RMV_VIZINHO)
     msg = msg.serialize()
     for v in db.get_vizinhos():
         s.sendto(msg, (v, RMV_VIZINHO_PORT))
@@ -45,12 +45,12 @@ def thread_for_each_interface(endereço, porta, function, db: Database):
 
 def handle_notify_vizinhos(vizinho: tuple, sckt, cur_retries = 0):
     MAX_RETRIES = 2
-    msg = Mensagem(Mensagem.add_vizinho).serialize()
+    msg = Mensagem(Mensagem.ADD_VIZINHO).serialize()
     sckt.sendto(msg, vizinho)
     try:
         resp, _ = sckt.recvfrom(2048)
         resp = Mensagem.deserialize(resp)
-        if resp.get_tipo() == Mensagem.add_vizinho:
+        if resp.get_tipo() == Mensagem.ADD_VIZINHO:
             print(f"Vizinho {vizinho[0]} notificado com sucesso.")
         else:
             print(f"Vizinho {vizinho[0]} NÃO respondeu como esperado!!!")
@@ -69,7 +69,7 @@ def svc_notify_vizinhos(db: Database):
     vizinhos = db.get_vizinhos()
     vizinhos_addr = [(vizinho, ADD_VIZINHO_PORT) for vizinho in vizinhos]
     print(f"A notificar os vizinhos {vizinhos}.")
-    threads = [] #! Caso se queira esperar por todas as threads
+    threads = []
 
     for v in vizinhos_addr:
         sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -77,7 +77,6 @@ def svc_notify_vizinhos(db: Database):
         t=threading.Thread(target=handle_notify_vizinhos, args=(v,sckt))
         t.start()
         threads.append(t)
-        # break #! DEBUG
 
     for t in threads:
         t.join()
@@ -88,7 +87,7 @@ def svc_notify_vizinhos(db: Database):
 def handle_add_vizinhos(msg, socket, addr:tuple, db: Database):
     print(f"ADD_VIZINHO: recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
-    if not msg.get_tipo() == Mensagem.add_vizinho:
+    if not msg.get_tipo() == Mensagem.ADD_VIZINHO:
         print(f"ADD_VIZINHO: pedido de {addr[0]} não é do tipo ADD_VIZINHO")
         return
     
@@ -125,7 +124,7 @@ def svc_add_vizinhos(db: Database):
 def handle_remove_vizinhos(msg, addr:tuple, db: Database):
     print(f"REMOVE_VIZINHO: recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
-    if not msg.get_tipo() == Mensagem.rmv_vizinho: # mensagem será de tipo diferente
+    if not msg.get_tipo() == Mensagem.RMV_VIZINHO:
         print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo RMV_VIZINHO")
         return
     
@@ -134,7 +133,6 @@ def handle_remove_vizinhos(msg, addr:tuple, db: Database):
         print(f"REMOVE_VIZINHO: {addr[0]} NÃO EXISTIA na lista de vizinhos!!!!!")
     else:
         print(f"REMOVE_VIZINHO: {addr[0]} removido dos vizinhos com sucesso.")
-        #! Talvez tbm tenha remover o streaming, caso haja algum streaming a ser enviado para ele, ou passar isso para a responsabilidade do rmv_vizinho
 
 # Função que lida com o serviço de adicionar vizinhos
 def svc_remove_vizinhos(db: Database):
@@ -184,7 +182,7 @@ def svc_clear_pedidos_resp(db: Database):
 def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
     msg = Mensagem.deserialize(data)
     tipo = msg.get_tipo()
-    if tipo == Mensagem.check_video: #> para evitar responder a pedidos que não sejam deste tipo 
+    if tipo == Mensagem.CHECK_VIDEO: #> para evitar responder a pedidos que não sejam deste tipo 
         if db.foi_respondido_msg(msg):
             print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{msg.get_dados()}' já foi respondido")
             return
@@ -193,7 +191,7 @@ def handle_check_video(data: bytes, sckt, pedinte: tuple, db: Database):
         print(f"CHECK_VIDEO: pedido por {pedinte[0]} do vídeo '{video}'{f', original do {msg.get_origem()}' if msg.get_origem() else ''}")
         if db.is_streaming_video(video): #> o nodo está já a transmitir o vídeo => Tem o vídeo
             print(f"CHECK_VIDEO: tenho o vídeo '{video}'")
-            response = Mensagem(Mensagem.resp_check_video, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
+            response = Mensagem(Mensagem.RESP_CHECK_VIDEO, dados=True, origem=sckt.getsockname()[0]) #> indica na mensagem que possui o video pretendido e indica o seu ip para quem receber saber onde ele está
             sckt.sendto(response.serialize(), pedinte) #> envia a resposta
         else: #> o nodo ainda não está a transmitir o video => não tem o vídeo
             print(f"CHECK_VIDEO: não tenho o vídeo '{video}' => broadcast para os meus vizinhos")
@@ -251,7 +249,7 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
     video = dados['video']
     ip_destino = dados['destino']
 
-    if not tipo == Mensagem.start_video:
+    if not tipo == Mensagem.START_VIDEO:
         print(f"\n\nPORTA ERRADA A RECEBER PEDIDO DE {tipo} INCORRETAMENTE\nSUPOSTO RECEBER START_VIDEOS!!!!!\n\n")
         return 
 
@@ -262,9 +260,8 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
         print(f"START_VIDEO: {addr[0]} adicionado à lista de transmissão do vídeo '{video}'{f', para o Cliente {cliente_origem}' if cliente_origem else ''}")
         
     else: #> Ainda não está a transmitir o vídeo
-        #! Talvez ter atenção algum caso em que não haja vizinho para o destino especificado (apesar de ser teoricamente impossível)
         destino_vizinho = db.resolve_ip_to_vizinho(ip_destino) #> Resolve o ip do destino para o ip do vizinho que tem o vídeo
-        start_video_msg = Mensagem(Mensagem.start_video, dados=dados) 
+        start_video_msg = Mensagem(Mensagem.START_VIDEO, dados=dados) 
         str_sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {destino_vizinho}")
         str_sckt.sendto(start_video_msg.serialize(), (destino_vizinho, V_START_PORT))
@@ -293,7 +290,7 @@ def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
     
     db.remove_streaming_from(fornecedor, video)
     # Não tem de se fazer db.remove_streaming, pois isso já foi feito no handle_stop_video, que pode causar a paragem deste ciclo, se remover todos os destinos que querem o video que está a receber.
-    stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
+    stop_video_msg = Mensagem(Mensagem.STOP_VIDEO, dados=video).serialize()
     str_sckt.sendto(stop_video_msg, (fornecedor, V_STOP_PORT))
     str_sckt.close() 
     print(f"START_VIDEO: Streaming de '{video}' terminada")
@@ -329,7 +326,7 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
 
 def rearranje_fornecedor(sckt, video:str, db: Database) -> str:
     """ Função que procura um novo fornecedor para o vídeo especificado, retornando o ip do novo fornecedor"""
-    msg = Mensagem(Mensagem.check_video, dados=video, origem=sckt.getsockname()[0]) 
+    msg = Mensagem(Mensagem.CHECK_VIDEO, dados=video, origem=sckt.getsockname()[0]) 
             
     # Broadcast para os vizinhos de CHECK_VIDEO
     for vizinho in db.get_vizinhos():
@@ -349,7 +346,7 @@ def rearranje_fornecedor(sckt, video:str, db: Database) -> str:
     db.add_route(nodo_fornecedor, ip_vizinho_fornecedor)
     print(f"CHECK_VIDEO: Confirmação da existência do '{video}' de {ip_vizinho_fornecedor}, original do {nodo_fornecedor}")
 
-    start_video_msg = Mensagem(Mensagem.start_video, dados={'video': video, 'destino': nodo_fornecedor})
+    start_video_msg = Mensagem(Mensagem.START_VIDEO, dados={'video': video, 'destino': nodo_fornecedor})
     sckt.settimeout(1) 
     print(f"START_VIDEO: A redirecionar o pedido do vídeo '{video}' para {ip_vizinho_fornecedor}")
     sckt.sendto(start_video_msg.serialize(), (ip_vizinho_fornecedor, V_START_PORT))
@@ -384,7 +381,7 @@ def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
     tipo = msg.get_tipo()
     video = msg.get_dados()
 
-    if tipo == Mensagem.stop_video:
+    if tipo == Mensagem.STOP_VIDEO:
         print(f"STOP_VIDEO: Parei de transmitir o vídeo '{video}' para {addr[0]}")
         db.remove_streaming(video, addr)
     else:
@@ -427,7 +424,7 @@ def main():
     svc4_thread = threading.Thread(target=svc_clear_pedidos_resp, args=(db,))
     svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
     svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
-    svc51_thread = threading.Thread(target=svc_show_db, args=(db,))
+    # svc51_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads=[   
         svc1_thread,
@@ -436,7 +433,7 @@ def main():
         svc4_thread,
         svc5_thread,
         svc6_thread,
-        svc51_thread,
+        # svc51_thread,
     ]
 
     for t in threads:

@@ -111,9 +111,9 @@ def handle_check_video(dados, socket, addr:tuple, db: Database_Server):
 	print(f"Conversação estabelecida com {addr}")
 	# print(msg)
 
-	if msg.get_tipo() == Mensagem.check_video:
+	if msg.get_tipo() == Mensagem.CHECK_VIDEO:
 		videos = db.get_videos()
-		msg = Mensagem(Mensagem.resp_check_video, dados=videos).serialize()
+		msg = Mensagem(Mensagem.RESP_CHECK_VIDEO, dados=videos).serialize()
 		socket.sendto(msg, addr)
 		print(f"Check_video respondido com os videos {videos} para {addr}")
 
@@ -141,7 +141,7 @@ def handle_start_video(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
 	print(f"Conversação estabelecida com {addr}")
 	print(msg)
-	if msg.get_tipo() == Mensagem.start_video:
+	if msg.get_tipo() == Mensagem.START_VIDEO:
 		print("Chegou ao start_video")
 		video = msg.get_dados()
 		if not db.has_video(video):
@@ -184,7 +184,7 @@ def handle_stop_video(dados, socket, addr:tuple, db: Database_Server):
 	print(f"Conversação estabelecida com {addr}")
 	# print(msg)
 
-	if msg.get_tipo() == Mensagem.stop_video:
+	if msg.get_tipo() == Mensagem.STOP_VIDEO:
 		video = msg.get_dados()
 		db.remove_stream(video) # termina o worker que trata de enviar o vídeo e remove-o da base de dados
 
@@ -212,7 +212,7 @@ def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
 	# print(f"Conversação estabelecida com {addr}")
 
-	if msg.get_tipo() == Mensagem.metrica:
+	if msg.get_tipo() == Mensagem.METRICA:
 		msg.update_timestamp()
 		socket.sendto(msg.serialize(), addr)
 		print(f"Métrica de {addr}, respondida.")

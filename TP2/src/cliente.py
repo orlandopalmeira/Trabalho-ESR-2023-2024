@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
 
 	#* Verificação da existencia do video
-	msg = Mensagem(Mensagem.check_video, dados=video, origem=self_ip)
+	msg = Mensagem(Mensagem.CHECK_VIDEO, dados=video, origem=self_ip)
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_check)
 	try:
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 	print(msg)
 
 	#* Iniciar o vídeo
-	msg = Mensagem(Mensagem.start_video, dados={'destino': msg.get_origem(), 'video': video}, origem=self_ip)
+	msg = Mensagem(Mensagem.START_VIDEO, dados={'destino': msg.get_origem(), 'video': video}, origem=self_ip)
 	print(f"Pedido de vídeo: {msg}")
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_start)
@@ -67,6 +67,6 @@ if __name__ == "__main__":
 		root.mainloop()
 	finally:
 		print("A terminar vídeo...")
-		stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
+		stop_video_msg = Mensagem(Mensagem.STOP_VIDEO, dados=video).serialize()
 		sckt.sendto(stop_video_msg, dest_stop)
 	

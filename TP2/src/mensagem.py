@@ -4,13 +4,13 @@ import pickle
 
 
 class Mensagem:
-    start_video = 1 # Pede o vídeo e nos dados, vem o nome do vídeo
-    metrica     = 2 # Pede a métrica
-    stop_video  = 3 # Pede para parar o vídeo
-    check_video = 4 # Pede para verificar se tem um vídeo, e nome do nome vem no vídeo
-    resp_check_video = 5 # Resposta ao pedido de check_video
-    add_vizinho = 6 # Notifica vizinhos da chegada de um novo vizinho
-    rmv_vizinho = 7 # Notifica vizinhos da remoção de um novo vizinho #! Não é usado
+    START_VIDEO = 1 # Pede o vídeo e nos dados, vem o nome do vídeo
+    METRICA     = 2 # Pede a métrica
+    STOP_VIDEO  = 3 # Pede para parar o vídeo
+    CHECK_VIDEO = 4 # Pede para verificar se tem um vídeo, e nome do nome vem no vídeo
+    RESP_CHECK_VIDEO = 5 # Resposta ao pedido de check_video
+    ADD_VIZINHO = 6 # Notifica vizinhos da chegada de um novo vizinho
+    RMV_VIZINHO = 7 # Notifica vizinhos da remoção de um novo vizinho
 
 
     def __init__(self, tipo:int, dados="", origem:str = ""):

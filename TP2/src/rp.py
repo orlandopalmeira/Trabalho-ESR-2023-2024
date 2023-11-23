@@ -45,9 +45,8 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
     from_node = addr[0]
     video = msg.get_dados()
 
-    if tipo == Mensagem.check_video:
+    if tipo == Mensagem.CHECK_VIDEO:
         print(f"CHECK_VIDEO: pedido por {addr[0]} do vídeo '{msg.get_dados()}'{f', original do {cliente_origem}' if cliente_origem else ''}")
-        #! Talvez não seja necessário verificar, pq n ha stress em receber dois pedidos iguais (talvez)
         if db.foi_respondido_msg(msg):
             print(f"CHECK_VIDEO: Pedido do vizinho {addr[0]} já foi respondido. Pedido ignorado.")
             return
@@ -59,7 +58,7 @@ def handle_check_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
         if db.servers_have_video(video):
             print(f"CHECK_VIDEO: tenho o vídeo {video}")
             origem = sckt.getsockname()[0]
-            msg = Mensagem(Mensagem.resp_check_video, dados=True, origem=origem)
+            msg = Mensagem(Mensagem.RESP_CHECK_VIDEO, dados=True, origem=origem)
             sckt.sendto(msg.serialize(), addr)
         else:
             print("CHECK_VIDEO: Não existe o filme pedido na rede overlay")
@@ -98,7 +97,7 @@ def handle_start_video(msg: bytes, sckt, addr:tuple, db: Database_RP):
         else: #> Ainda não está a receber o vídeo
             best_server = db.get_best_server(video) #> Vai buscar o vídeo ao melhor servidor
             print(f"START_VIDEO: não estou a transmitir o vídeo '{video}' => solicitação ao servidor {best_server}")
-            start_video_msg = Mensagem(Mensagem.start_video, dados=video) #> Mensagem de soliticação do vídeo ao servidor
+            start_video_msg = Mensagem(Mensagem.START_VIDEO, dados=video) #> Mensagem de soliticação do vídeo ao servidor
             sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #> Socket para comunicar com o servidor
             sckt.settimeout(5)
             sckt.sendto(start_video_msg.serialize(), (best_server, V_START_PORT)) #> Envia a mensagem de soliticação do vídeo para o servidor
@@ -112,13 +111,13 @@ def relay_video(str_sckt, video, server: str, db: Database_RP):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
-            packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer aqui aquela função que abstrai a recepção de packets/frames em que usa o serviço ALIVE para o tratamento de erros/falhas.
+            packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer mecanismo de rearranjar_servidor (parecido com o rearranjar_fornecedor) 
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
             break # pára a stream
         
-    stop_video_msg = Mensagem(Mensagem.stop_video, dados=video).serialize()
+    stop_video_msg = Mensagem(Mensagem.STOP_VIDEO, dados=video).serialize()
     str_sckt.sendto(stop_video_msg, (server, V_STOP_PORT))
     str_sckt.close() 
     print(f"Streaming de '{video}' terminada")
@@ -169,7 +168,7 @@ def handler_get_videos_from_server(server_ip: str, db: Database_RP):
     try:
         sckt.settimeout(6)
         server = (server_ip,V_CHECK_PORT)
-        msg = Mensagem(Mensagem.check_video).serialize()
+        msg = Mensagem(Mensagem.CHECK_VIDEO).serialize()
         print(f"A enviar pedido de vídeos ao servidor {server}")
         sckt.sendto(msg, server)
         try:
@@ -216,7 +215,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
         sckt.settimeout(5)
         server = (server_ip, METRICS_PORT)
         for i in range(num_of_requests):
-            msg = Mensagem(Mensagem.metrica).serialize()
+            msg = Mensagem(Mensagem.METRICA).serialize()
             sckt.sendto(msg, server)
             # print(f"Enviada mensagem de teste {i} para o servidor {server}")
         print(f"Enviadas {num_of_requests} mensagens de métrica para o servidor {server}")  
@@ -265,9 +264,10 @@ def svc_measure_metrics(db: Database_RP):
         thread.join()
 
 def svc_measure_metrics_continuous(db: Database_RP):
+    TIME_BETWEEN_METRIC_MESSAGES = 30 # em secs
     while True:
         svc_measure_metrics(db)
-        time.sleep(20) # talvez meter isto a 1 minuto
+        time.sleep(TIME_BETWEEN_METRIC_MESSAGES) 
 
 ##################################################################################################################
 #* Serviço de ADD_VIZINHOS
@@ -275,7 +275,7 @@ def svc_measure_metrics_continuous(db: Database_RP):
 def handle_add_vizinhos(msg, socket, addr:tuple, db: Database_RP):
     print(f"ADD_VIZINHO: recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
-    if not msg.get_tipo() == Mensagem.add_vizinho:
+    if not msg.get_tipo() == Mensagem.ADD_VIZINHO:
         print(f"ADD_VIZINHO: pedido de {addr[0]} não é do tipo ADD_VIZINHO")
         return
     
@@ -312,16 +312,16 @@ def svc_add_vizinhos(db: Database_RP):
 def handle_remove_vizinhos(msg, addr:tuple, db: Database_RP):
     print(f"REMOVE_VIZINHO: recebido de {addr[0]}")
     msg = Mensagem.deserialize(msg)
-    if not msg.get_tipo() == Mensagem.rmv_vizinho: # mensagem será de tipo diferente
+    if not msg.get_tipo() == Mensagem.RMV_VIZINHO: # mensagem será de tipo diferente
         print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo RMV_VIZINHO")
         return
     
+    #! Rever melhor se o comportamento disto deveria ser igual ao ONODE (Ver o comportamento disto, quando se remove um Onode Vizinho do RP)
     r = db.remove_vizinho(addr[0])
     if r == 1:
         print(f"REMOVE_VIZINHO: {addr[0]} NÃO EXISTIA na lista de vizinhos!!!!!")
     else:
         print(f"REMOVE_VIZINHO: {addr[0]} removido dos vizinhos com sucesso.")
-        #! Talvez tbm tenha remover o streaming, caso haja algum streaming a ser enviado para ele, ou passar isso para a responsabilidade do rmv_vizinho
 
 # Função que lida com o serviço de adicionar vizinhos
 def svc_remove_vizinhos(db: Database_RP):
@@ -373,7 +373,7 @@ def main():
     svc1_thread = threading.Thread(target=svc_check_video, args=(db,))
     svc2_thread = threading.Thread(target=svc_stop_video, args=(db,))
     svc3_thread = threading.Thread(target=svc_start_video, args=(db,))
-    svc4_thread = threading.Thread(target=svc_measure_metrics, args=(db,)) #! Está com o measure_metrics único, para não spamar o terminal
+    svc4_thread = threading.Thread(target=svc_measure_metrics_continuous, args=(db,))
     svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
     svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
     # show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
