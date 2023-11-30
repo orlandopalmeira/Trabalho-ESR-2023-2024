@@ -10,7 +10,7 @@ from RtpPacket import RtpPacket
 
 CACHE_FILE_NAME = f"cache-{random.randint(0,10000)}-"
 CACHE_FILE_EXT = ".jpg"
-from mensagem import Mensagem
+
 class ClienteGUI:
 	
 	# Initiation..

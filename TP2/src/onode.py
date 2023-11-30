@@ -6,7 +6,6 @@ import time
 from database import Database
 from mensagem import Mensagem
 from utils import get_ips, change_terminal_title
-from queue import Queue
 from functools import partial
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
@@ -25,7 +24,14 @@ def ctrlc_handler(db: Database, sig, frame):
     for v in db.get_vizinhos():
         s.sendto(msg, (v, RMV_VIZINHO_PORT))
         print(f"Enviado pedido de remoção de vizinho para {v}")
+    s.close()
     sys.exit(0)
+
+# Função para encerrar repentinamente no momento do CTRL+P
+def ctrl_slash_handler(sig, frame):
+    print("A simular encerramento repentino...")
+    sys.exit(0)
+
 
 def thread_for_each_interface(endereço, porta, function, db: Database):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -159,7 +165,7 @@ def svc_remove_vizinhos(db: Database):
 # Função que lida com o serviço de mostrar vizinhos quando é premido ENTER
 def svc_show_db(db: Database):
     service_name = 'svc_show_db'
-    interval = 15
+    interval = 40
     print(f"Serviço '{service_name}' pronto para mostrar a db de {interval} em {interval} segundos. (DEBUG)")
     while True:
         print(db)
@@ -271,14 +277,21 @@ def handle_start_video(msg, str_sckt, addr:tuple, db: Database):
 
 def relay_video(str_sckt, video:str, fornecedor:str, db: Database):
     """ Função que recebe um determinado vídeo e reencaminha o vídeo para os cliente que o pedem.
-        Ela gere a lógica de parar a stream quando não existem mais clientes a querer ver o vídeo e também de arranjar uma nova rota caso o fornecedor do vídeo falhe.(AINDA N IMPLEMENTADO)"""
+        Ela gere a lógica de parar a stream quando não existem mais clientes a querer ver o vídeo e também de arranjar uma nova rota caso o fornecedor do vídeo falhe."""
     print(f"START_VIDEO: Starting relay_video for video '{video}'")
     str_sckt.settimeout(1) # Timeout de 1 segundo, para verificar se o proveniente está vivo
+    retries = 0
+    oldPacket = None
+    packet = None
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
             try:
-                packet, addr = receive_video_frame(str_sckt, fornecedor, video, db)
+                oldPacket = packet
+                packet, addr, retries = receive_video_frame(str_sckt, fornecedor, video, db, retries=retries)
+                if not packet: #> Se o packet for None, é porque houve algum timeout e queremos enviar o último frame que recebemos como dummy packet
+                    print(f"Enviado um dummy packet, devido a falta do fornecedor {fornecedor} do vídeo '{video}'")
+                    packet = oldPacket # dummy packet
             except: # Caso não haja nenhum fornecedor a fornecer o vídeo
                 print(f"Não foram encontrados fornecedores para o video '{video}' após um rearranjo!!!")
                 break
@@ -302,27 +315,31 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
     try:
         packet, addr = sckt.recvfrom(20480)
     except socket.timeout:
-        if not db.is_transmitting_video(ip_fornecedor):
+        if not db.is_transmitting_video(ip_fornecedor): ## Caso em que o nodo fornecedor mandou um RMV_VIZINHO
             print(f"START_VIDEO: {ip_fornecedor} deixou de estar ativo para fornecer o video '{video}'")
             print(f"START_VIDEO: A procurar um novo fornecedor para o vídeo '{video}'")
             new_fornecedor = rearranje_fornecedor(sckt, video, db)
             # packet, addr = sckt.recvfrom(20480)
-            packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
+            packet, addr, retries = receive_video_frame(sckt, new_fornecedor, video, db)
             print(f"START_VIDEO: Novo fornecedor para o vídeo '{video}' encontrado: {new_fornecedor}")
 
-        else: #> O fornecedor ainda está ativo, mas não está a enviar o vídeo
+        else: #> O fornecedor ainda está ativo, mas não está a enviar o vídeo (potencial falha abrupta)
             if retries > 2:
                 print(f"START_VIDEO: {ip_fornecedor} ultrapassou o limite de falhas de fornecimento do video '{video}'")
                 db.remove_streaming_from(ip_fornecedor, video) # Aqui é necessário remover do streaming_from pois n recebeu nenhum RMV_VIZINHO, mas vai-se rearranjar de fornecedor.
                 new_fornecedor = rearranje_fornecedor(sckt, video, db)
-                packet, addr = receive_video_frame(sckt, new_fornecedor, video, db)
                 print(f"START_VIDEO: Novo fornecedor para o vídeo '{video}' encontrado: {new_fornecedor}")
+                packet, addr, retries = receive_video_frame(sckt, new_fornecedor, video, db)
                 
             else:
                 print(f"START_VIDEO: {ip_fornecedor} deu um timeout no envio do vídeo '{video}'. Retries: {retries+1}")
-                packet, addr = receive_video_frame(sckt, ip_fornecedor, video, db, retries=retries+1)
+                ##? Mandar mensagem dummy rtp packet para que não despolete timeouts nos nodos prévios.
+                packet = None ## Significa envio de dummy packet
+                addr = (ip_fornecedor, V_START_PORT)
+                retries += 1
+                # packet, addr = receive_video_frame(sckt, ip_fornecedor, video, db, retries=retries+1)
 
-    return packet, addr
+    return packet, addr, retries
 
 def rearranje_fornecedor(sckt, video:str, db: Database) -> str:
     """ Função que procura um novo fornecedor para o vídeo especificado, retornando o ip do novo fornecedor"""
@@ -408,6 +425,8 @@ def main():
 
     # Regista o sinal para encerrar o servidor no momento do CTRL+C
     signal.signal(signal.SIGINT, partial(ctrlc_handler, db))
+    # Regista o sinal para simular o encerramento repentino do servidor no momento do CTRL+\
+    signal.signal(signal.SIGQUIT, ctrl_slash_handler)
     
     if len(sys.argv) < 2:
         print(f"Uso: python3 {sys.argv[0]} <config_file.json>")
@@ -424,7 +443,7 @@ def main():
     svc4_thread = threading.Thread(target=svc_clear_pedidos_resp, args=(db,))
     svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
     svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
-    # svc51_thread = threading.Thread(target=svc_show_db, args=(db,))
+    # svc_showdb_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads=[   
         svc1_thread,
@@ -433,7 +452,7 @@ def main():
         svc4_thread,
         svc5_thread,
         svc6_thread,
-        # svc51_thread,
+        # svc_showdb_thread,
     ]
 
     for t in threads:

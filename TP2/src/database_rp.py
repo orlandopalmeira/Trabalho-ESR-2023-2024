@@ -17,7 +17,7 @@ class Database_RP(Database):
         servs = data["servidores"]
         with self.serverInfoLock:
             for s in servs:
-                self.serverInfo[s] = dict()
+                self.serverInfo[s] = {"metric": 0, "contents": []}
 
     def get_best_server(self, movie_name) -> str:
         """Retorna o ip do melhor servidor para o filme movie_name"""

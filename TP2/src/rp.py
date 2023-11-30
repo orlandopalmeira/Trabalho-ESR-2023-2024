@@ -111,7 +111,7 @@ def relay_video(str_sckt, video, server: str, db: Database_RP):
     while True:
         clients = db.get_clients_streaming(video) # clientes/dispositivos que querem ver o vídeo
         if len(clients) > 0: # ainda existem clientes a querer ver o vídeo?
-            packet, _ = str_sckt.recvfrom(20480) #! Talvez fazer mecanismo de rearranjar_servidor (parecido com o rearranjar_fornecedor) 
+            packet, _ = str_sckt.recvfrom(20480) 
             for dest in clients: # envia o frame recebido do servidor para todos os dispositivos a ver o vídeo
                 str_sckt.sendto(packet, dest)
         else: # não existem mais dispositivos a querer ver o vídeo
@@ -200,7 +200,7 @@ def svc_get_videos_from_servers(db: Database_RP):
 def svc_get_videos_from_servers_continuous(db: Database_RP):
     while True:
         svc_get_videos_from_servers(db)
-        time.sleep(50)
+        time.sleep(120)
 
 ##################################################################################################################
 #* Metricas 
@@ -218,7 +218,7 @@ def handler_measure_metrics(server_ip: str, db: Database_RP):
             msg = Mensagem(Mensagem.METRICA).serialize()
             sckt.sendto(msg, server)
             # print(f"Enviada mensagem de teste {i} para o servidor {server}")
-        print(f"Enviadas {num_of_requests} mensagens de métrica para o servidor {server}")  
+        # print(f"Enviadas {num_of_requests} mensagens de métrica para o servidor {server}")  
 
         successes = 0
         sum_delivery_time = 0
@@ -264,7 +264,7 @@ def svc_measure_metrics(db: Database_RP):
         thread.join()
 
 def svc_measure_metrics_continuous(db: Database_RP):
-    TIME_BETWEEN_METRIC_MESSAGES = 30 # em secs
+    TIME_BETWEEN_METRIC_MESSAGES = 40 # em secs
     while True:
         svc_measure_metrics(db)
         time.sleep(TIME_BETWEEN_METRIC_MESSAGES) 
@@ -349,7 +349,7 @@ def svc_remove_vizinhos(db: Database_RP):
 def svc_show_db(db: Database_RP):
     while True:
         print("-"*20); print(db); print("-"*20)
-        time.sleep(10)
+        time.sleep(20)
 
 ##################################################################################################################
 
@@ -376,7 +376,7 @@ def main():
     svc4_thread = threading.Thread(target=svc_measure_metrics_continuous, args=(db,))
     svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
     svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
-    # show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
+    show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
         svc1_thread,
@@ -384,8 +384,8 @@ def main():
         svc3_thread,
         svc4_thread,
         svc5_thread,
-        svc6_thread
-        # show_db_thread
+        svc6_thread,
+        show_db_thread,
     ]
 
     for t in threads:
