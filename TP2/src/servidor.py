@@ -41,7 +41,7 @@ class ServerWorker:
 					print('-'*60)
 		# Close the RTP socket
 		self.clientInfo['rtpSocket'].close()
-		print("All done!")
+		# print("All done!")
 
 	@staticmethod
 	def makeRtp(payload, frameNbr):
@@ -108,17 +108,17 @@ def svc_check_video(port:int, db: Database_Server):
 
 def handle_check_video(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
-	print(f"Conversação estabelecida com {addr}")
+	print(f"CHECK_VIDEO: Received from {addr}")
 	# print(msg)
 
 	if msg.get_tipo() == Mensagem.CHECK_VIDEO:
 		videos = db.get_videos()
 		msg = Mensagem(Mensagem.RESP_CHECK_VIDEO, dados=videos).serialize()
 		socket.sendto(msg, addr)
-		print(f"Check_video respondido com os videos {videos} para {addr}")
+		print(f"CHECK_VIDEO: respondido com os videos {videos} para {addr}")
 
 	else:
-		print("Foi recebido uma mensagem desconhecida!!")
+		print("Foi recebido uma mensagem no serviço de CHEKC_VIDEO que não é de CHEKC_VIDEO type!!")
 
 #################################################################################################################
 #* Serviço de START_VIDEO que inicia o envio de um video
@@ -139,14 +139,13 @@ def svc_start_video(port:int, db: Database_Server):
 
 def handle_start_video(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
-	print(f"Conversação estabelecida com {addr}")
-	print(msg)
+	print(f"START_VIDEO: Received from {addr}")
+	
 	if msg.get_tipo() == Mensagem.START_VIDEO:
-		print("Chegou ao start_video")
 		video = msg.get_dados()
 		if not db.has_video(video):
-			print(f"START_VIDEO without video: Não tenho o video {video}")
-			raise Exception(f"START_VIDEO without video {video}")
+			print(f"START_VIDEO: Não tenho o video '{video}'!!!")
+			raise Exception(f"START_VIDEO without video '{video}'!!!")
 		
 		if not db.is_streaming(video): # só inicia a stream do vídeo se não estiver a emiti-lo
 			dest_addr = addr[0]
@@ -154,13 +153,12 @@ def handle_start_video(dados, socket, addr:tuple, db: Database_Server):
 			sw = ServerWorker()
 			sw.serve_movie(dest_addr, dest_port, video)
 			db.add_stream(video,sw)
-			response = f"A enviar o fluxo de video para {dest_addr} na porta {dest_port}"
-			print(response)
+			print(f"START_VIDEO: A enviar o fluxo do video '{video}' para {dest_addr}:{dest_port}")
 		else:
+			# Caso em que recebeu um pedido de start_video de um vídeo mas que já está a ser emitido (Impossível de acontecer, só para debug)
 			raise Exception(f"Já iniciei o vídeo '{video}'")
-
 	else:
-		print("Foi recebido uma mensagem desconhecida!!")
+		print("Foi recebido uma mensagem no serviço de START_VIDEO que não é de START_VIDEO type!!")
 
 #################################################################################################################
 #* Serviço de STOP_VIDEO que para o envio de um video
@@ -181,15 +179,14 @@ def svc_stop_video(port:int, db: Database_Server):
 
 def handle_stop_video(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
-	print(f"Conversação estabelecida com {addr}")
-	# print(msg)
 
 	if msg.get_tipo() == Mensagem.STOP_VIDEO:
 		video = msg.get_dados()
+		print(f"STOP_VIDEO: {addr} pediu para parar a transmissão do vídeo {video}")
 		db.remove_stream(video) # termina o worker que trata de enviar o vídeo e remove-o da base de dados
 
 	else:
-		print("Foi recebido uma mensagem desconhecida!!")
+		print("Foi recebido uma mensagem no serviço de STOP_VIDEO que não é de STOP_VIDEO type!!")
 
 #################################################################################################################
 #* Serviço de MÉTRICA que responde com aos pacotes do RP com um TIMESTAMP
@@ -210,12 +207,11 @@ def svc_answer_metrics(port:int, db: Database_Server):
 
 def handle_answer_metrics(dados, socket, addr:tuple, db: Database_Server):
 	msg = Mensagem.deserialize(dados)
-	# print(f"Conversação estabelecida com {addr}")
 
 	if msg.get_tipo() == Mensagem.METRICA:
 		msg.update_timestamp()
 		socket.sendto(msg.serialize(), addr)
-		print(f"Métrica de {addr}, respondida.")
+		#? print(f"Métrica de {addr}, respondida.") # Print demasiado poluente
 	else:
 		print("Foi recebido uma mensagem no serviço de Métrica, cuja mensagem não é do tipo MÉTRICA!!")
 
@@ -226,7 +222,6 @@ def main():
 	change_terminal_title()
 	# Regista o sinal para encerrar o servidor no momento do CTRL+C
 	signal.signal(signal.SIGINT, ctrlc_handler)
-
 
 	db = Database_Server()
 
