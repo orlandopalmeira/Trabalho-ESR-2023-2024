@@ -16,6 +16,7 @@ V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
 if __name__ == "__main__":
 	root = Tk()
 	change_terminal_title()
+	my_name = socket.gethostname()
 
 	#* Verificação dos argumentos
 	if len(sys.argv) < 3:
@@ -56,7 +57,8 @@ if __name__ == "__main__":
 	print(msg)
 
 	#* Iniciar o vídeo
-	msg = Mensagem(Mensagem.START_VIDEO, dados={'destino': msg.get_origem(), 'video': video}, origem=self_ip)
+	destino = msg.get_origem()
+	msg = Mensagem(Mensagem.START_VIDEO, dados={'destino': destino, 'video': video}, origem=self_ip)
 	print(f"Pedido de vídeo: {msg}")
 	msg = msg.serialize()
 	sckt.sendto(msg, dest_start)
@@ -64,7 +66,7 @@ if __name__ == "__main__":
 		#! Verificar timeouts e assim la dentro do clienteGUI
 		# Create a new client
 		app = ClienteGUI(root, sckt)
-		app.master.title(f"Cliente {self_ip} - {video}") 
+		app.master.title(f"{my_name}({self_ip}) - {video} from {destino}") 
 		root.mainloop()
 	finally:
 		print("A terminar vídeo...")

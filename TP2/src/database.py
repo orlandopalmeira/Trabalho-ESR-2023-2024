@@ -14,13 +14,13 @@ class Database:
         # Info acerca dos nós que me estão a transmitir streaming
         self.streaming_from = dict() # {ip: [nome_video]} em que ip é uma string
         self.streaming_fromLock = threading.Lock()
+        self.alivenessOfReceptors = dict() # {ip: timestamp} em que ip é uma string e timestamp é um datetime.datetime
+        self.alivenessOfReceptorsLock = threading.Lock()
 
         # Info acerca dos meus vizinhos
         self.vizinhos = set()
         self.vizinhoslock = threading.Lock()
 
-        #? Talvez se possa fazer um dict: ip destino -> [ip vizinho] em que a ordem é a de preferencia. 
-        #* R: Acho que nem vai ser possivel com o bloqueio dos pedidos ja respondidos
         self.routingTable = dict() # ip destino -> ip vizinho
         self.routingTableLock = threading.Lock()
 
@@ -108,6 +108,12 @@ class Database:
                     del new_streaming[video]
             self.streaming = new_streaming
 
+    def get_fornecedores(self):
+        """Retorna uma lista de ips dos fornecedores"""
+        with self.streaming_fromLock:
+            # print(self.streaming_from.keys()) #! DEBUG
+            return self.streaming_from.keys()
+
     def add_streaming_from(self, ip_fornecedor:str, video:str):
         """Adiciona o video 'video' à lista de videos que estou a receber do ip 'ip_fornecedor'"""
         with self.streaming_fromLock:
@@ -139,8 +145,40 @@ class Database:
     def is_transmitting_video(self, ip:str):
         with self.streaming_fromLock:
             return ip in self.streaming_from
+        
+#??###################
+#* Secção de alivenessOfReceptors - EXTRA
 
-#?###################
+    def update_aliveness_of_receptor(self, ip:str):
+        with self.alivenessOfReceptorsLock:
+            self.alivenessOfReceptors[ip] = datetime.datetime.now()
+
+    def remove_aliveness_of_receptor(self, ip:str):
+        with self.alivenessOfReceptorsLock:
+            try:
+                del self.alivenessOfReceptors[ip]
+            except KeyError:
+                pass
+    
+    def get_aliveness_of_receptors(self): #?? NOT USED
+        with self.alivenessOfReceptorsLock:
+            return self.alivenessOfReceptors.copy()
+        
+    def treat_dead_receptors(self, max_age_secs:int = 100):
+        """Elimina alivenessOfReceptors há mais de 'max_age_secs' segundos"""
+        now = datetime.datetime.now()
+        min_timestamp = now - datetime.timedelta(seconds=max_age_secs)
+        new_alivenessOfReceptors = dict()
+        with self.alivenessOfReceptorsLock:
+            for ip in self.alivenessOfReceptors:
+                if not self.alivenessOfReceptors[ip] < min_timestamp:
+                    new_alivenessOfReceptors[ip] = self.alivenessOfReceptors[ip]
+                else:
+                    print(f"Receptor {ip} removido por falta de aliveness_packets. A remover da lista de destinos de streams.")
+                    self.remove_streaming_for_ip(ip) # Ter cuidado com ordem dos locks (aqui dentro faz um lock do streamingLock, mas acho que está resolvido)
+            self.alivenessOfReceptors = new_alivenessOfReceptors
+
+#??###################
 
     def remove_route_for_ip(self, ip:str):
         new_rt = dict()
@@ -218,7 +256,7 @@ class Database:
 
 
     def __str__(self):
-        with self.vizinhoslock, self.routingTableLock, self.pedidosRespondidosLock, self.streamingLock, self.streaming_fromLock:
+        with self.alivenessOfReceptorsLock, self.vizinhoslock, self.routingTableLock, self.pedidosRespondidosLock, self.streamingLock, self.streaming_fromLock:
             pedidosRespondidos_str = [
                 {**pedido, 'ts': pedido['ts'].strftime('%Y-%m-%d %H:%M:%S')}
                 for pedido in self.pedidosRespondidos.copy()
@@ -227,6 +265,7 @@ class Database:
                 f"\nDatabase:\n"
                 f"\tstreaming: {self.streaming}\n"
                 f"\tstreaming_from: {self.streaming_from}\n"
+                f"\talivenessOfReceptors: {self.alivenessOfReceptors}\n"
                 f"\tvizinhos: {self.vizinhos}\n"
                 f"\troutingTable: {self.routingTable}\n"
                 f"\tpedidosRespondidos: {pedidosRespondidos_str}\n"

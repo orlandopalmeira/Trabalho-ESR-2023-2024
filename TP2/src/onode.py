@@ -13,6 +13,7 @@ V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
 V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
 ADD_VIZINHO_PORT= 3005 #> Porta de atendimento do serviço add_vizinho
 RMV_VIZINHO_PORT= 3006 #> Porta de atendimento do serviço rmv_vizinho
+ALIVE_RECEPTOR_PORT = 3007 #> Porta de atendimento do serviço alive_receptor
 
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
@@ -182,6 +183,66 @@ def svc_clear_pedidos_resp(db: Database):
     while True:
         db.remove_pedidos_respondidos(max_age_secs)
         time.sleep(interval)
+
+##################################################################################################################
+
+#* Serviço relativos ao envio e receção de ALIVE_RECEPTOR's
+
+def svc_send_alive_receptor(db: Database):
+    """Serviço que envia ALIVE_RECEPTOR's para os fornecedores de X em X segundos; X = 30"""
+    sckt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    msg = Mensagem(Mensagem.ALIVE_RECEPTOR).serialize()
+    interval = 20
+    print(f"Serviço 'svc_send_alive_receptor' a enviar ALIVE_RECEPTOR's para os fornecedores de {interval} em {interval} segundos.")
+    while True:
+        try:
+            fornecedores = db.get_fornecedores()
+            for f in fornecedores:
+                sckt.sendto(msg, (f, ALIVE_RECEPTOR_PORT))
+                # Não precisa de nenhum ACK, porque se o fornecedor não estiver ativo isso é descoberto através de timeouts
+            time.sleep(interval)
+        except Exception as e:
+            print(f"Erro svc_send_alive_receptor: {e}")
+            break
+    sckt.close()
+
+def svc_recv_alive_receptor(db: Database):
+    """ Serviço que recebe ALIVE_RECEPTOR's e regista o sinal de vida dos fornecedores"""
+    service_name = 'svc_recv_alive_receptor'
+    print(f"Serviço '{service_name}' pronto para receber ALIVE_RECEPTOR's na porta {ALIVE_RECEPTOR_PORT}")
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind(('', ALIVE_RECEPTOR_PORT))
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_recv_alive_receptor, args=(dados, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_alive_receptor: {e}")
+            break
+    server_socket.close()
+
+
+def handle_recv_alive_receptor(msg, addr:tuple, db: Database):
+    """ Handler do svc de receção de ALIVE_RECEPTOR's"""
+    msg = Mensagem.deserialize(msg)
+    if msg.get_tipo() == Mensagem.ALIVE_RECEPTOR:
+        db.update_aliveness_of_receptor(addr[0])
+        print(f"ALIVE_RECEPTOR: {addr[0]} atualizado.")
+    else:
+        print(f"ALIVE_RECEPTOR: pedido de {addr[0]} não é do tipo ALIVE_RECEPTOR")
+
+
+def svc_treat_dead_receptors(db: Database):
+    """ Serviço que trata de remover os fornecedores que não estão ativos"""
+    service_name = 'svc_treat_dead_receptors'
+    interval = 40
+    max_age_secs = 60 # Com o envio de 20 em 20 segundos, se um fornecedor não responder em 60 segundos, é considerado morto
+    print(f"Serviço '{service_name}' a tratar de fornecedores inativos de {interval} em {interval} segundos.")
+    while True:
+        db.treat_dead_receptors(max_age_secs)
+        time.sleep(interval)
+
+
 
 ##################################################################################################################
 #* Serviço de CHECK_VIDEO
@@ -443,7 +504,11 @@ def main():
     svc4_thread = threading.Thread(target=svc_clear_pedidos_resp, args=(db,))
     svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
     svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
-    # svc_showdb_thread = threading.Thread(target=svc_show_db, args=(db,))
+
+    svc7_thread = threading.Thread(target=svc_recv_alive_receptor, args=(db,))
+    svc8_thread = threading.Thread(target=svc_send_alive_receptor, args=(db,))
+    svc9_thread = threading.Thread(target=svc_treat_dead_receptors, args=(db,))
+    svc_showdb_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads=[   
         svc1_thread,
@@ -452,7 +517,10 @@ def main():
         svc4_thread,
         svc5_thread,
         svc6_thread,
-        # svc_showdb_thread,
+        svc7_thread,
+        svc8_thread,
+        svc9_thread,
+        svc_showdb_thread,
     ]
 
     for t in threads:

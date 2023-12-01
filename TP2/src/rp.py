@@ -14,6 +14,7 @@ V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos
 V_STOP_PORT  = 3003 #> Porta de atendimento do serviço stop_videos
 ADD_VIZINHO_PORT= 3005 #> Porta de atendimento do serviço add_vizinho
 RMV_VIZINHO_PORT= 3006 #> Porta de atendimento do serviço rmv_vizinho
+ALIVE_RECEPTOR_PORT = 3007 #> Porta de atendimento do serviço alive_forn
 METRICS_PORT = 3010 #> Porta para solicitar a métrica ao Servidor
 
 # Função para encerrar o servidor e as suas threads no momento do CTRL+C
@@ -264,7 +265,7 @@ def svc_measure_metrics(db: Database_RP):
         thread.join()
 
 def svc_measure_metrics_continuous(db: Database_RP):
-    TIME_BETWEEN_METRIC_MESSAGES = 40 # em secs
+    TIME_BETWEEN_METRIC_MESSAGES = 240 # em secs
     while True:
         svc_measure_metrics(db)
         time.sleep(TIME_BETWEEN_METRIC_MESSAGES) 
@@ -316,7 +317,6 @@ def handle_remove_vizinhos(msg, addr:tuple, db: Database_RP):
         print(f"REMOVE_VIZINHO: pedido de {addr[0]} não é do tipo RMV_VIZINHO")
         return
     
-    #! Rever melhor se o comportamento disto deveria ser igual ao ONODE (Ver o comportamento disto, quando se remove um Onode Vizinho do RP)
     r = db.remove_vizinho(addr[0])
     if r == 1:
         print(f"REMOVE_VIZINHO: {addr[0]} NÃO EXISTIA na lista de vizinhos!!!!!")
@@ -345,11 +345,64 @@ def svc_remove_vizinhos(db: Database_RP):
 
 ##################################################################################################################
 
-#! Para debug, que mostra o conteúdo da base de dados
+#* Serviço que limpa os pedidos respondidos da base de dados
+def svc_clear_pedidos_resp(db: Database_RP):
+    service_name = 'svc_clear_pedidos_resp'
+    interval = 15
+    max_age_secs = 10
+    print(f"Serviço '{service_name}' a limpar pedidos já respondidos há mais de {max_age_secs} de {interval} em {interval} segundos.")
+    while True:
+        db.remove_pedidos_respondidos(max_age_secs)
+        time.sleep(interval)
+
+##################################################################################################################
+
+#? Para debug, que mostra o conteúdo da base de dados
 def svc_show_db(db: Database_RP):
     while True:
         print("-"*20); print(db); print("-"*20)
-        time.sleep(20)
+        time.sleep(25)
+
+##################################################################################################################
+
+#* Serviço relativos à receção de ALIVE_RECEPTOR's
+
+def svc_recv_alive_receptor(db: Database_RP):
+    """ Serviço que recebe ALIVE_RECEPTOR's e regista o sinal de vida dos fornecedores"""
+    service_name = 'svc_recv_alive_receptor'
+    print(f"Serviço '{service_name}' pronto para receber ALIVE_RECEPTOR's na porta {ALIVE_RECEPTOR_PORT}")
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind(('', ALIVE_RECEPTOR_PORT))
+    while True:
+        try:
+            dados, addr = server_socket.recvfrom(1024)
+            threading.Thread(target=handle_recv_alive_receptor, args=(dados, addr, db)).start()
+        except Exception as e:
+            print(f"Erro svc_alive_receptor: {e}")
+            break
+    server_socket.close()
+
+
+def handle_recv_alive_receptor(msg, addr:tuple, db: Database_RP):
+    """ Handler do svc de receção de ALIVE_RECEPTOR's"""
+    msg = Mensagem.deserialize(msg)
+    if msg.get_tipo() == Mensagem.ALIVE_RECEPTOR:
+        db.update_aliveness_of_receptor(addr[0])
+        print(f"ALIVE_RECEPTOR: {addr[0]} atualizado.")
+    else:
+        print(f"ALIVE_RECEPTOR: pedido de {addr[0]} não é do tipo ALIVE_RECEPTOR")
+
+
+def svc_treat_dead_receptors(db: Database_RP):
+    """ Serviço que trata de remover os fornecedores que não estão ativos"""
+    service_name = 'svc_treat_dead_receptors'
+    interval = 40
+    max_age_secs = 60 # Com o envio de 20 em 20 segundos, se um fornecedor não responder em 60 segundos, é considerado morto
+    print(f"Serviço '{service_name}' a tratar de fornecedores inativos de {interval} em {interval} segundos.")
+    while True:
+        db.treat_dead_receptors(max_age_secs)
+        time.sleep(interval)
+
 
 ##################################################################################################################
 
@@ -376,6 +429,12 @@ def main():
     svc4_thread = threading.Thread(target=svc_measure_metrics_continuous, args=(db,))
     svc5_thread = threading.Thread(target=svc_add_vizinhos, args=(db,))
     svc6_thread = threading.Thread(target=svc_remove_vizinhos, args=(db,))
+
+    svc7_thread = threading.Thread(target=svc_recv_alive_receptor, args=(db,))
+    svc9_thread = threading.Thread(target=svc_treat_dead_receptors, args=(db,))
+
+    svc_clear_ans_reqs = threading.Thread(target=svc_clear_pedidos_resp, args=(db,))
+
     show_db_thread = threading.Thread(target=svc_show_db, args=(db,))
 
     threads = [
@@ -385,6 +444,9 @@ def main():
         svc4_thread,
         svc5_thread,
         svc6_thread,
+        svc_clear_ans_reqs,
+        svc7_thread,
+        svc9_thread,
         show_db_thread,
     ]
 

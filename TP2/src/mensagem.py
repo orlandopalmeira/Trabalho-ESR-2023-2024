@@ -11,6 +11,7 @@ class Mensagem:
     RESP_CHECK_VIDEO = 5 # Resposta ao pedido de check_video
     ADD_VIZINHO = 6 # Notifica vizinhos da chegada de um novo vizinho
     RMV_VIZINHO = 7 # Notifica vizinhos da remoção de um novo vizinho
+    ALIVE_RECEPTOR = 8 # Notifica fornecedor que ainda está vivo
 
 
     def __init__(self, tipo:int, dados="", origem:str = ""):
