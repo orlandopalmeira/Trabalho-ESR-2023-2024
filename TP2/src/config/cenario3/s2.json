@@ -2,6 +2,5 @@
     "videos": [
         "movie.Mjpeg",
         "movie_2.Mjpeg"
-    ],
-    "rp_addr": "10.0.8.1"
+    ]
 }

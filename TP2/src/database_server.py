@@ -1,6 +1,5 @@
 import threading
 import json
-import datetime
 
 
 class Database_Server:
@@ -12,8 +11,6 @@ class Database_Server:
         self.streams = dict() # {nome_video: ServerWorker}
         self.streamsLock = threading.Lock()
 
-        self.rp_addr = None # string
-        self.rp_addr_Lock = threading.Lock()
 
     # Lê o ficheiro de configuração JSON e guarda o necessário na base de dados
     def read_config_file(self, filepath):
@@ -24,8 +21,6 @@ class Database_Server:
                 self.videos = set(data["videos"])
         else:
             print("AVISO: Não existem videos no ficheiro de configuração!!!")
-        with self.rp_addr_Lock:
-            self.rp_addr = data["rp_addr"]
 
     def add_video(self, video):
         with self.videosLock:
@@ -64,7 +59,3 @@ class Database_Server:
     def is_streaming(self, video):
         with self.streamsLock:
             return video in self.streams.keys()
-
-    def is_rp_addr(self, addr):
-        with self.rp_addr_Lock:
-            return addr == self.rp_addr
