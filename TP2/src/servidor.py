@@ -65,9 +65,9 @@ class ServerWorker:
 	def stop_serving(self):
 		self.clientInfo['event'].set()
 
-	def serve_movie(self, dest_addr:str, dest_port:int, movie_name:str):
+	def serve_movie(self, dest_addr:str, dest_port:int, movie_name:str, videos_dir:str="./videos/"):
 		# Para indicar onde os filmes estão guardados
-		filename = f"./videos/{movie_name}" # talvez acrescentar no formated string "{movie_name}.Mjpeg"
+		filename = f"{videos_dir}{movie_name}" # talvez acrescentar no formated string "{movie_name}.Mjpeg"
 
 		self.clientInfo = dict()
 
@@ -151,7 +151,7 @@ def handle_start_video(dados, socket, addr:tuple, db: Database_Server):
 			dest_addr = addr[0]
 			dest_port = addr[1]
 			sw = ServerWorker()
-			sw.serve_movie(dest_addr, dest_port, video)
+			sw.serve_movie(dest_addr, dest_port, video, videos_dir=db.get_videos_dir())
 			db.add_stream(video,sw)
 			print(f"START_VIDEO: A enviar o fluxo do video '{video}' para {dest_addr}:{dest_port}")
 		else:
