@@ -33,8 +33,12 @@ class Database:
     def read_config_file(self, filepath:str):
         with open(filepath) as f:
             data = json.load(f)
-        with self.vizinhoslock:
-            self.vizinhos = set(data["vizinhos"])
+        if "vizinhos" in data:
+            with self.vizinhoslock:
+                self.vizinhos = set(data["vizinhos"])
+        else:
+            print("Ficheiro de configuração não tem vizinhos!")
+            self.vizinhos = set()
 
     def add_vizinho(self, ip:str):
         with self.vizinhoslock:

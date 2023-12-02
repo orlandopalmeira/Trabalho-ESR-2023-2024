@@ -32,8 +32,7 @@ class Database_Server:
         if not os.path.exists(self.videos_dir):
             print(f"Diretoria de videos fornecida {self.videos_dir} não existe!!")
             sys.exit(1)
-        else:
-            print(F"PASSEI AQUI{self.videos_dir}") #! DEBUG
+        print(f"Diretoria dos vídeos definida: {self.videos_dir}")
 
     def add_video(self, video):
         with self.videosLock:
