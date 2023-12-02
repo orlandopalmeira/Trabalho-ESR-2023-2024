@@ -2,7 +2,7 @@ from random import randint
 import sys, traceback, threading, socket
 
 from VideoStream import VideoStream
-from RtpPacket import RtpPacket
+from aux.RtpPacket import RtpPacket
 
 class ServerWorker:
 	SETUP = 'SETUP'

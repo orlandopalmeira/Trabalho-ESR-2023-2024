@@ -2,12 +2,10 @@ import sys
 import socket
 import json
 from tkinter import Tk
-sys.path.append("./Python")
-from ClienteGUI import ClienteGUI
+from aux.ClienteGUI import ClienteGUI
 
-from database import Database
-from mensagem import Mensagem
-from utils import get_ips, change_terminal_title
+from aux.mensagem import Mensagem
+from aux.utils import get_ips, change_terminal_title
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
 V_START_PORT = 3002 #> Porta de atendimento do serviço start_videos

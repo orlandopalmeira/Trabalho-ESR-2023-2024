@@ -3,9 +3,9 @@ import threading
 import signal
 import sys
 import time
-from database import Database
-from mensagem import Mensagem
-from utils import get_ips, change_terminal_title
+from Databases.database import Database
+from aux.mensagem import Mensagem
+from aux.utils import get_ips, change_terminal_title
 from functools import partial
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
@@ -520,7 +520,7 @@ def main():
         svc7_thread,
         svc8_thread,
         svc9_thread,
-        svc_showdb_thread,
+        # svc_showdb_thread,
     ]
 
     for t in threads:

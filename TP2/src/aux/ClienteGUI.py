@@ -6,7 +6,7 @@ import random
 
 # ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-from RtpPacket import RtpPacket
+from aux.RtpPacket import RtpPacket
 
 CACHE_FILE_NAME = f"cache-{random.randint(0,10000)}-"
 CACHE_FILE_EXT = ".jpg"

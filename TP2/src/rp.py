@@ -4,9 +4,9 @@ import signal
 import sys
 import time
 import datetime
-from database_rp import Database_RP
-from mensagem import Mensagem
-from utils import get_ips, change_terminal_title
+from Databases.database_rp import Database_RP
+from aux.mensagem import Mensagem
+from aux.utils import get_ips, change_terminal_title
 from queue import Queue
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
@@ -447,7 +447,7 @@ def main():
         svc_clear_ans_reqs,
         svc7_thread,
         svc9_thread,
-        show_db_thread,
+        # show_db_thread,
     ]
 
     for t in threads:

@@ -1,13 +1,12 @@
 from random import randint
 import sys, traceback, threading, socket
 
-sys.path.append("./Python")
-from VideoStream import VideoStream
-from RtpPacket import RtpPacket
+from aux.VideoStream import VideoStream
+from aux.RtpPacket import RtpPacket
 
-from database_server import Database_Server
-from mensagem import Mensagem
-from utils import change_terminal_title
+from Databases.database_server import Database_Server
+from aux.mensagem import Mensagem
+from aux.utils import change_terminal_title
 import signal
 
 V_CHECK_PORT = 3001 #> Porta de atendimento do serviço check_videos
