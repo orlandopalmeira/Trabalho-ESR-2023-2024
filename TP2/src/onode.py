@@ -60,10 +60,10 @@ def handle_notify_vizinhos(vizinho: tuple, sckt, cur_retries = 0):
         if resp.get_tipo() == Mensagem.ADD_VIZINHO:
             print(f"Vizinho {vizinho[0]} notificado com sucesso.")
         else:
-            print(f"Vizinho {vizinho[0]} NÃO respondeu como esperado!!!")
+            print(f"Vizinho {vizinho[0]} NÃO respondeu com o tipo ADD_VIZINHO!!!")
         sckt.close()
     except socket.timeout:
-        print(f"Timeout {vizinho[0]} DEBUG")
+        # print(f"Timeout {vizinho[0]} DEBUG")
         cur_retries += 1
         if cur_retries < MAX_RETRIES:
             handle_notify_vizinhos(vizinho, sckt, cur_retries=cur_retries)
