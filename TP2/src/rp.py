@@ -265,7 +265,7 @@ def svc_measure_metrics(db: Database_RP):
         thread.join()
 
 def svc_measure_metrics_continuous(db: Database_RP):
-    TIME_BETWEEN_METRIC_MESSAGES = 240 # em secs
+    TIME_BETWEEN_METRIC_MESSAGES = 120 # em secs
     while True:
         svc_measure_metrics(db)
         time.sleep(TIME_BETWEEN_METRIC_MESSAGES) 
