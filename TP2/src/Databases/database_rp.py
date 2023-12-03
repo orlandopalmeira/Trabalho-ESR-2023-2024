@@ -25,7 +25,7 @@ class Database_RP(Database):
             best = None
             for serv in self.serverInfo:
                 if movie_name in self.serverInfo[serv]["contents"]:
-                    if best == None or self.serverInfo[serv]["metric"] < self.serverInfo[best]["metric"]:
+                    if best == None or self.serverInfo[serv]["metric"] > self.serverInfo[best]["metric"]:
                         best = serv
         return best
     
