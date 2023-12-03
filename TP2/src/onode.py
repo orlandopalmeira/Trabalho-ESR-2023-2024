@@ -404,7 +404,7 @@ def receive_video_frame(sckt, ip_fornecedor:str, video:str, db: Database, retrie
 
 def rearranje_fornecedor(sckt, video:str, db: Database) -> str:
     """ Função que procura um novo fornecedor para o vídeo especificado, retornando o ip do novo fornecedor"""
-    msg = Mensagem(Mensagem.CHECK_VIDEO, dados=video, origem=sckt.getsockname()[0]) 
+    msg = Mensagem(Mensagem.CHECK_VIDEO, dados=video) 
             
     # Broadcast para os vizinhos de CHECK_VIDEO
     for vizinho in db.get_vizinhos():
