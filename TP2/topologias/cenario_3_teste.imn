@@ -554,8 +554,8 @@ link l2 {
 }
 
 link l3 {
+    delay 100000
     nodes {n14 n16}
-    bandwidth 0
 }
 
 link l4 {
