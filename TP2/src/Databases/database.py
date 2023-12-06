@@ -98,7 +98,7 @@ class Database:
                 self.streaming[video] = [x for x in self.streaming[video] if x != addr] #> Remove o endereço addr da lista, se existir
                 if len(self.streaming[video]) == 0:
                     del self.streaming[video]
-                print("Streaming removido com sucesso")
+                print(f"Streaming do vídeo '{video}' para {addr[0]} removido com sucesso")
             except KeyError:
                 print("Streaming não existia")
 

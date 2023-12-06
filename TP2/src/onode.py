@@ -453,7 +453,6 @@ def svc_start_video(db: Database):
 #* Serviço de STOP_VIDEO
 
 def handle_stop_video(msg, str_sckt, addr:tuple, db: Database):
-    print(f"STOP_VIDEO: Conversação estabelecida com {addr[0]}")
     msg = Mensagem.deserialize(msg)
 
     tipo = msg.get_tipo()
